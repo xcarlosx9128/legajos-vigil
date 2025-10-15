@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  front:
+    build:
+      context: ./front
+    ports:
+      - "80:80"  # Exponemos el frontend en el puerto 80
+    depends_on:
+      - back  # El frontend depende del backend
+
+  back:
+    build:
+      context: ./back
+    ports:
+      - "8000:8000"  # Exponemos el backend de Django en el puerto 8000
+    volumes:
+      - ./back:/app  # Montamos el directorio de código de Django
+    environment:
+      - DEBUG=1
+    depends_on:
+      - db  # El backend depende de la base de datos
+
+  db:
+    image: postgres:13  # Usamos la imagen oficial de PostgreSQL
+    volumes:
+      - pgdata:/var/lib/postgresql/data  # Volumen para persistencia de la base de datos
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: legajos_db
+    ports:
+      - "5432:5432"  # Exponemos el puerto de PostgreSQL
+
+volumes:
+  pgdata:

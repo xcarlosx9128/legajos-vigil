@@ -1,0 +1,27 @@
+# Node
+front/node_modules/
+front/dist/
+front/build/
+front/.env*
+
+# Python
+back/__pycache__/
+back/venv/
+
+# Docker
+*.pyc
+*.pyo
+__pycache__/
+*.db
+*.sqlite3
+.env
+.env.*
+.env.local
+.env.production
+
+# VS Code / IDEs
+.vscode/
+.idea/
+
+# General
+.DS_Store
