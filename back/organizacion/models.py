@@ -47,3 +47,18 @@ class CondicionLaboral(models.Model):
     
     def __str__(self):
         return self.nombre
+
+class Cargo(models.Model):
+    nombre = models.CharField(max_length=200, unique=True)
+    descripcion = models.TextField(blank=True, null=True)
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        db_table = 'cargos'
+        verbose_name = 'Cargo'
+        verbose_name_plural = 'Cargos'
+        ordering = ['nombre']
+    
+    def __str__(self):
+        return self.nombre  

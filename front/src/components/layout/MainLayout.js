@@ -65,31 +65,31 @@ const MainLayout = ({ children }) => {
           ...baseItems,
           { text: 'Gestionar Usuarios', icon: <PeopleIcon />, path: '/admin/usuarios' },
           { text: 'Áreas', icon: <BusinessIcon />, path: '/admin/areas' },
-          { text: 'Consultar Personal', icon: <PersonIcon />, path: '/admin/personal' },
+          { text: 'Gestionar Personal', icon: <PersonIcon />, path: '/gestionar-personal' }, // ⭐ NUEVO
+          { text: 'Tickets', icon: <AssignmentIcon />, path: '/tickets' }, // ⭐ AGREGADO
         ];
       
       case 'SUBGERENTE':
         return [
           ...baseItems,
           { text: 'Consultar Personal', icon: <PersonIcon />, path: '/subgerente/consultar-personal' },
+          { text: 'Gestionar Personal', icon: <PeopleIcon />, path: '/gestionar-personal' }, // ⭐ NUEVO
+          { text: 'Tickets', icon: <AssignmentIcon />, path: '/tickets' }, // ⭐ AGREGADO
         ];
       
       case 'ENCARGADO':
         return [
           ...baseItems,
-          { text: 'Gestionar Personal', icon: <PeopleIcon />, path: '/encargado/personal' },
-          { text: 'Añadir Personal', icon: <PersonIcon />, path: '/encargado/nuevo-personal' },
-          { text: 'Ver Tickets', icon: <AssignmentIcon />, path: '/tickets' },
+          { text: 'Gestionar Personal', icon: <PeopleIcon />, path: '/gestionar-personal' }, // ⭐ ACTUALIZADO
+          { text: 'Tickets', icon: <AssignmentIcon />, path: '/tickets' }, // ⭐ ACTUALIZADO
           { text: 'Configuración', icon: <SettingsIcon />, path: '/encargado/configuracion' },
         ];
       
       case 'COORDINADOR':
         return [
           ...baseItems,
-          { text: 'Gestionar Personal', icon: <PeopleIcon />, path: '/coordinador/personal' },
-          { text: 'Añadir Personal', icon: <PersonIcon />, path: '/coordinador/nuevo-personal' },
-          { text: 'Ver Tickets', icon: <AssignmentIcon />, path: '/tickets' },
-          { text: 'Generar Ticket', icon: <DescriptionIcon />, path: '/coordinador/generar-ticket' },
+          { text: 'Gestionar Personal', icon: <PeopleIcon />, path: '/gestionar-personal' }, // ⭐ ACTUALIZADO
+          { text: 'Tickets', icon: <AssignmentIcon />, path: '/tickets' }, // ⭐ ACTUALIZADO
           { text: 'Configuración', icon: <SettingsIcon />, path: '/coordinador/configuracion' },
         ];
       

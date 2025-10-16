@@ -2,24 +2,19 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .models import Area, Regimen, CondicionLaboral
+from .models import Area, Regimen, CondicionLaboral, Cargo
 from .serializers import (
-    AreaSerializer, AreaListSerializer,
-    RegimenSerializer, RegimenListSerializer,
-    CondicionLaboralSerializer, CondicionLaboralListSerializer
+    AreaSerializer,
+    RegimenSerializer,
+    CondicionLaboralSerializer,
+    CargoSerializer
 )
 from usuarios.permissions import IsAdmin
 
 class AreaViewSet(viewsets.ModelViewSet):
     queryset = Area.objects.all()
     permission_classes = [IsAuthenticated]
-    serializer_class = AreaSerializer  # ← USAR SIEMPRE AreaSerializer (con descripción)
-    
-    # ELIMINAMOS el método get_serializer_class para que use AreaSerializer siempre
-    # def get_serializer_class(self):
-    #     if self.action == 'list':
-    #         return AreaListSerializer  # ← Esto NO tiene descripción
-    #     return AreaSerializer
+    serializer_class = AreaSerializer
     
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
@@ -52,11 +47,7 @@ class AreaViewSet(viewsets.ModelViewSet):
 class RegimenViewSet(viewsets.ModelViewSet):
     queryset = Regimen.objects.all()
     permission_classes = [IsAuthenticated]
-    
-    def get_serializer_class(self):
-        if self.action == 'list':
-            return RegimenListSerializer
-        return RegimenSerializer
+    serializer_class = RegimenSerializer
     
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
@@ -68,12 +59,9 @@ class RegimenViewSet(viewsets.ModelViewSet):
         
         # Filtros
         activo = self.request.query_params.get('activo', None)
-        tipo = self.request.query_params.get('tipo', None)
         
         if activo is not None:
             queryset = queryset.filter(activo=activo.lower() == 'true')
-        if tipo:
-            queryset = queryset.filter(tipo=tipo)
         
         return queryset.order_by('nombre')
     
@@ -89,11 +77,7 @@ class RegimenViewSet(viewsets.ModelViewSet):
 class CondicionLaboralViewSet(viewsets.ModelViewSet):
     queryset = CondicionLaboral.objects.all()
     permission_classes = [IsAuthenticated]
-    
-    def get_serializer_class(self):
-        if self.action == 'list':
-            return CondicionLaboralListSerializer
-        return CondicionLaboralSerializer
+    serializer_class = CondicionLaboralSerializer
     
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
@@ -105,12 +89,9 @@ class CondicionLaboralViewSet(viewsets.ModelViewSet):
         
         # Filtros
         activo = self.request.query_params.get('activo', None)
-        tipo = self.request.query_params.get('tipo', None)
         
         if activo is not None:
             queryset = queryset.filter(activo=activo.lower() == 'true')
-        if tipo:
-            queryset = queryset.filter(tipo=tipo)
         
         return queryset.order_by('nombre')
     
@@ -121,4 +102,37 @@ class CondicionLaboralViewSet(viewsets.ModelViewSet):
         condicion.activo = not condicion.activo
         condicion.save()
         serializer = self.get_serializer(condicion)
+        return Response(serializer.data)
+
+class CargoViewSet(viewsets.ModelViewSet):
+    queryset = Cargo.objects.all()
+    permission_classes = [IsAuthenticated]
+    serializer_class = CargoSerializer
+    
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsAdmin()]
+        return [IsAuthenticated()]
+    
+    def get_queryset(self):
+        queryset = Cargo.objects.all()
+        
+        # Filtros
+        activo = self.request.query_params.get('activo', None)
+        search = self.request.query_params.get('search', None)
+        
+        if activo is not None:
+            queryset = queryset.filter(activo=activo.lower() == 'true')
+        if search:
+            queryset = queryset.filter(nombre__icontains=search)
+        
+        return queryset.order_by('nombre')
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdmin])
+    def toggle_active(self, request, pk=None):
+        """Habilitar/Deshabilitar cargo"""
+        cargo = self.get_object()
+        cargo.activo = not cargo.activo
+        cargo.save()
+        serializer = self.get_serializer(cargo)
         return Response(serializer.data)

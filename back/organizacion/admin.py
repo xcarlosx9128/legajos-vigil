@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Area, Regimen, CondicionLaboral
+from .models import Area, Regimen, CondicionLaboral, Cargo
 
 
 @admin.register(Area)
@@ -50,6 +50,29 @@ class RegimenAdmin(admin.ModelAdmin):
 
 @admin.register(CondicionLaboral)
 class CondicionLaboralAdmin(admin.ModelAdmin):
+    list_display = ['id', 'nombre', 'activo', 'fecha_creacion']
+    list_filter = ['activo', 'fecha_creacion']
+    search_fields = ['nombre', 'descripcion']
+    ordering = ['nombre']
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('nombre',)
+        }),
+        ('Detalles', {
+            'fields': ('descripcion', 'activo')
+        }),
+        ('Fechas', {
+            'fields': ('fecha_creacion',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ['fecha_creacion']
+
+
+@admin.register(Cargo)
+class CargoAdmin(admin.ModelAdmin):
     list_display = ['id', 'nombre', 'activo', 'fecha_creacion']
     list_filter = ['activo', 'fecha_creacion']
     search_fields = ['nombre', 'descripcion']

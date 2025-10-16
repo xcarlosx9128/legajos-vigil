@@ -12,6 +12,7 @@ import Tickets from './pages/Tickets';
 import GestionUsuarios from './pages/admin/GestionUsuarios';
 import GestionAreas from './pages/admin/GestionAreas';
 import ConsultarPersonal from './pages/subgerente/ConsultarPersonal';
+import GestionarPersonal from './pages/GestionarPersonal'; // ⭐ NUEVO
 
 const theme = createTheme({
   palette: {
@@ -65,6 +66,18 @@ function App() {
                 <ProtectedRoute>
                   <MainLayout>
                     <Tickets />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ⭐ NUEVA RUTA: Gestionar Personal */}
+            <Route
+              path="/gestionar-personal"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <GestionarPersonal />
                   </MainLayout>
                 </ProtectedRoute>
               }

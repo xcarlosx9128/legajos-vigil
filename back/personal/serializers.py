@@ -1,13 +1,13 @@
 from rest_framework import serializers
 from .models import Personal, Escalafon, Legajo
-from organizacion.serializers import AreaListSerializer, RegimenListSerializer, CondicionLaboralListSerializer
+from organizacion.serializers import AreaSerializer, RegimenSerializer, CondicionLaboralSerializer
 from usuarios.serializers import UsuarioListSerializer
 
 class PersonalSerializer(serializers.ModelSerializer):
     nombre_completo = serializers.ReadOnlyField()
-    area_actual_detalle = AreaListSerializer(source='area_actual', read_only=True)
-    regimen_actual_detalle = RegimenListSerializer(source='regimen_actual', read_only=True)
-    condicion_actual_detalle = CondicionLaboralListSerializer(source='condicion_actual', read_only=True)
+    area_actual_detalle = AreaSerializer(source='area_actual', read_only=True)
+    regimen_actual_detalle = RegimenSerializer(source='regimen_actual', read_only=True)
+    condicion_actual_detalle = CondicionLaboralSerializer(source='condicion_actual', read_only=True)
     
     class Meta:
         model = Personal
