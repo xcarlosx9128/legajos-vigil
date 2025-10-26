@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   TextField,
@@ -28,11 +29,15 @@ import {
   Search as SearchIcon,
   Add as AddIcon,
   PictureAsPdf as PdfIcon,
+  Edit as EditIcon,
+  FolderOpen as FolderOpenIcon,
 } from '@mui/icons-material';
 import api from '../services/api';
 import SearchableSelect from '../components/SearchableSelect';
 
 const GestionarPersonal = () => {
+  const navigate = useNavigate();
+  
   const [searchValue, setSearchValue] = useState('');
   const [filters, setFilters] = useState({
     area: '',
@@ -55,18 +60,38 @@ const GestionarPersonal = () => {
     nombres: '',
     apellido_paterno: '',
     apellido_materno: '',
-    area: '',
-    cargo: '',
-    regimen: '',
-    condicion_laboral: '',
-    documento: null,
+    area_actual_id: '',
+    cargo_actual: '',
+    regimen_actual_id: '',
+    condicion_actual_id: '',
+    foto: null,
   });
   const [dniSearch, setDniSearch] = useState('');
   const [loadingDNI, setLoadingDNI] = useState(false);
+  const [expandedRow, setExpandedRow] = useState(null);
 
   useEffect(() => {
     cargarDatos();
+    cargarTodoElPersonal();
   }, []);
+
+  const cargarTodoElPersonal = async () => {
+    setLoading(true);
+    try {
+      console.log('📥 Cargando TODO el personal...');
+      const response = await api.get('/personal/');
+      const data = response.data.results || response.data;
+      console.log('✅ Personal cargado:', data.length, 'registros');
+      console.log('📋 Primer registro de ejemplo:', JSON.stringify(data[0], null, 2));
+      console.log('🔍 Campos disponibles:', data[0] ? Object.keys(data[0]) : 'No hay registros');
+      setPersonal(data);
+    } catch (err) {
+      console.error('❌ Error al cargar personal:', err);
+      setError('Error al cargar el personal');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const cargarDatos = async () => {
     setLoadingAreas(true);
@@ -128,6 +153,15 @@ const GestionarPersonal = () => {
       if (filters.regimen) params.append('regimen', filters.regimen);
       if (filters.condicion) params.append('condicion', filters.condicion);
 
+      // Si no hay ningún filtro, cargar TODO el personal
+      if (!searchValue.trim() && !filters.area && !filters.regimen && !filters.condicion) {
+        console.log('📥 Sin filtros, cargando TODO el personal...');
+        const response = await api.get('/personal/');
+        const data = response.data.results || response.data;
+        setPersonal(data);
+        return;
+      }
+
       const response = await api.get(`/personal/buscar-filtros/?${params.toString()}`);
       
       setPersonal(response.data);
@@ -150,18 +184,18 @@ const GestionarPersonal = () => {
 
   const handleOpenAddDialog = () => {
     setOpenAddDialog(true);
+    setDniSearch('');
     setNewPersonal({
       dni: '',
       nombres: '',
       apellido_paterno: '',
       apellido_materno: '',
-      area: '',
-      cargo: '',
-      regimen: '',
-      condicion_laboral: '',
-      documento: null,
+      area_actual_id: '',
+      cargo_actual: '',
+      regimen_actual_id: '',
+      condicion_actual_id: '',
+      foto: null,
     });
-    setDniSearch('');
   };
 
   const handleCloseAddDialog = () => {
@@ -180,6 +214,9 @@ const GestionarPersonal = () => {
     
     try {
       const response = await api.get(`/personal/buscar-dni/${dniSearch}/`);
+      
+      // Actualizar tanto dniSearch como newPersonal.dni para mantenerlos sincronizados
+      setDniSearch(response.data.dni);
       
       setNewPersonal(prev => ({
         ...prev,
@@ -206,42 +243,131 @@ const GestionarPersonal = () => {
   const handleFileChange = (e) => {
     setNewPersonal(prev => ({
       ...prev,
-      documento: e.target.files[0]
+      foto: e.target.files[0]
     }));
   };
 
+  const handleToggleRow = (personaId) => {
+    setExpandedRow(expandedRow === personaId ? null : personaId);
+  };
+
+  const handleVisualizarLegajo = (persona) => {
+    console.log('Visualizar Legajo:', persona);
+    // TODO: Navegar a /personal/:id/legajo?modo=lectura
+    // O abrir modal con documentos en modo lectura
+    alert(`Visualizar Legajo de ${persona.nombre_completo}\n\nEsta funcionalidad mostrará todos los documentos del personal en modo lectura.`);
+  };
+
+  const handleVisualizarEscalafon = (persona) => {
+    console.log('Visualizar Escalafón:', persona);
+    // TODO: Mostrar modal con historial completo del escalafón
+    alert(`Visualizar Escalafón de ${persona.nombre_completo}\n\nDNI: ${persona.dni}\nÁrea: ${persona.area_nombre || 'Sin área'}\nCargo: ${persona.cargo_nombre || '-'}\nRégimen: ${persona.regimen_nombre || '-'}\nCondición: ${persona.condicion_nombre || '-'}`);
+  };
+
+  const handleEditarLegajo = (persona) => {
+    console.log('Editar Legajo:', persona);
+    navigate(`/gestionar-personal/${persona.id}/legajo`);
+  };
+
+  const handleEditarEscalafon = (persona) => {
+    console.log('Editar Escalafón:', persona);
+    navigate(`/gestionar-personal/${persona.id}/escalafon`);
+  };
+
   const handleAgregarPersonal = async () => {
+    console.log('🔍 INICIANDO PROCESO DE AGREGAR PERSONAL');
+    console.log('📋 Estado completo de newPersonal:', JSON.stringify(newPersonal, null, 2));
+    
     // Validaciones
-    if (!newPersonal.dni || !newPersonal.nombres || !newPersonal.apellido_paterno) {
-      setError('Por favor complete los campos obligatorios: DNI, Nombres y Apellidos');
+    if (!newPersonal.dni) {
+      console.log('❌ FALTA DNI');
+      setError('Por favor ingrese el DNI');
       return;
     }
+    if (!newPersonal.nombres) {
+      console.log('❌ FALTA NOMBRES');
+      setError('Por favor ingrese el nombre');
+      return;
+    }
+    if (!newPersonal.apellido_paterno) {
+      console.log('❌ FALTA APELLIDO PATERNO');
+      setError('Por favor ingrese el apellido paterno');
+      return;
+    }
+
+    console.log('✅ VALIDACIÓN PASADA');
+    console.log('📝 Datos a enviar:', newPersonal);
 
     try {
       const formData = new FormData();
       
+      // Agregar cada campo al FormData
       Object.keys(newPersonal).forEach(key => {
-        if (newPersonal[key] && key !== 'documento') {
-          formData.append(key, newPersonal[key]);
+        if (key !== 'foto') {
+          const value = newPersonal[key];
+          // Enviar incluso si es vacío o 0, excepto null/undefined
+          if (value !== null && value !== undefined && value !== '') {
+            formData.append(key, value);
+            console.log(`✅ Agregando ${key}:`, value);
+          } else {
+            console.log(`⚠️ Omitiendo ${key} (valor vacío):`, value);
+          }
         }
       });
       
-      if (newPersonal.documento) {
-        formData.append('documento', newPersonal.documento);
+      if (newPersonal.foto) {
+        formData.append('foto', newPersonal.foto);
+        console.log('📎 Foto agregada:', newPersonal.foto.name);
       }
 
-      await api.post('/personal/', formData, {
+      // Mostrar todo lo que se enviará
+      console.log('🚀 Enviando datos al servidor...');
+      console.log('📦 FormData entries:');
+      for (let pair of formData.entries()) {
+        console.log(`  ${pair[0]}: ${pair[1]}`);
+      }
+
+      const response = await api.post('/personal/', formData, {
         headers: { 
           'Content-Type': 'multipart/form-data'
         }
       });
 
+      console.log('✅ Personal agregado exitosamente:', response.data);
+      
       handleCloseAddDialog();
-      handleSearch();
+      
+      // Recargar TODO el personal
+      console.log('🔄 Recargando lista completa de personal...');
+      await cargarTodoElPersonal();
+      
       alert('Personal agregado exitosamente');
     } catch (err) {
-      console.error('Error al agregar personal:', err);
-      setError(err.response?.data?.error || 'Error al agregar personal');
+      console.error('❌ Error completo:', err);
+      console.error('❌ Error response:', err.response);
+      console.error('❌ Error data:', err.response?.data);
+      
+      // Mostrar error más detallado
+      let errorMsg = 'Error al agregar personal';
+      if (err.response?.data) {
+        if (typeof err.response.data === 'string') {
+          errorMsg = err.response.data;
+        } else if (err.response.data.error) {
+          errorMsg = err.response.data.error;
+        } else if (err.response.data.detail) {
+          errorMsg = err.response.data.detail;
+        } else {
+          // Mostrar todos los errores de validación
+          const errors = Object.entries(err.response.data)
+            .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+            .join(' | ');
+          errorMsg = errors || errorMsg;
+        }
+      }
+      
+      console.error('📢 ERROR FINAL:', errorMsg);
+      setError(errorMsg);
+      alert('Error: ' + errorMsg);
     }
   };
 
@@ -398,52 +524,138 @@ const GestionarPersonal = () => {
           <Table>
             <TableHead>
               <TableRow sx={{ bgcolor: '#003366' }}>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold', py: 2 }}>N°</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold', py: 2, width: '50px' }}>N°</TableCell>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold', py: 2 }}>Nombre y Apellidos</TableCell>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold', py: 2 }}>DNI</TableCell>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold', py: 2 }}>Área</TableCell>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold', py: 2 }}>Cargo</TableCell>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold', py: 2 }}>Régimen</TableCell>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold', py: 2 }}>Condición Laboral</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold', py: 2, textAlign: 'center', minWidth: '240px' }}>Acciones</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {personal.map((persona, index) => (
-                <TableRow key={persona.id} hover>
-                  <TableCell>{index + 1}</TableCell>
-                  <TableCell sx={{ textTransform: 'uppercase', fontWeight: 500 }}>
-                    {`${persona.apellido_paterno} ${persona.apellido_materno}, ${persona.nombres}`}
-                  </TableCell>
-                  <TableCell>{persona.dni}</TableCell>
-                  <TableCell sx={{ fontSize: '0.875rem' }}>
-                    {persona.area_nombre || persona.area || 'Sin área'}
-                  </TableCell>
-                  <TableCell>{persona.cargo || '-'}</TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={persona.regimen_laboral || persona.regimen || 'No especificado'} 
-                      size="small" 
-                      sx={{ 
-                        bgcolor: '#e3f2fd', 
-                        color: '#1976d2', 
-                        fontWeight: 'bold',
-                        fontSize: '0.75rem'
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={persona.condicion_laboral || persona.condicion || 'No especificado'} 
-                      size="small" 
-                      sx={{ 
-                        bgcolor: '#e8f5e9',
-                        color: '#2e7d32',
-                        fontWeight: 'bold',
-                        fontSize: '0.75rem'
-                      }}
-                    />
-                  </TableCell>
-                </TableRow>
+                <React.Fragment key={persona.id}>
+                  {/* Fila principal */}
+                  <TableRow 
+                    hover 
+                    onClick={() => handleToggleRow(persona.id)}
+                    sx={{ 
+                      cursor: 'pointer',
+                      bgcolor: expandedRow === persona.id ? '#f5f5f5' : 'inherit',
+                      '&:hover': {
+                        bgcolor: '#f0f0f0'
+                      }
+                    }}
+                  >
+                    <TableCell>{index + 1}</TableCell>
+                    <TableCell sx={{ textTransform: 'uppercase', fontWeight: 500 }}>
+                      {persona.nombre_completo || 'Sin nombre'}
+                    </TableCell>
+                    <TableCell>{persona.dni || '-'}</TableCell>
+                    <TableCell sx={{ fontSize: '0.875rem' }}>
+                      {persona.area_nombre || 'Sin área'}
+                    </TableCell>
+                    <TableCell>{persona.cargo_nombre || '-'}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={persona.regimen_nombre || 'No especificado'} 
+                        size="small" 
+                        sx={{ 
+                          bgcolor: '#e3f2fd', 
+                          color: '#1976d2', 
+                          fontWeight: 'bold',
+                          fontSize: '0.75rem'
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={persona.condicion_nombre || 'No especificado'} 
+                        size="small" 
+                        sx={{ 
+                          bgcolor: '#e8f5e9',
+                          color: '#2e7d32',
+                          fontWeight: 'bold',
+                          fontSize: '0.75rem'
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          onClick={() => handleVisualizarLegajo(persona)}
+                          sx={{
+                            bgcolor: '#5C6BC0',
+                            color: 'white',
+                            fontSize: '0.75rem',
+                            textTransform: 'none',
+                            px: 2,
+                            '&:hover': { bgcolor: '#3F51B5' }
+                          }}
+                        >
+                          Visualizar Legajo
+                        </Button>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          onClick={() => handleVisualizarEscalafon(persona)}
+                          sx={{
+                            bgcolor: '#EF5350',
+                            color: 'white',
+                            fontSize: '0.75rem',
+                            textTransform: 'none',
+                            px: 2,
+                            '&:hover': { bgcolor: '#E53935' }
+                          }}
+                        >
+                          Visualizar Escalafón
+                        </Button>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Fila expandida */}
+                  {expandedRow === persona.id && (
+                    <TableRow>
+                      <TableCell colSpan={8} sx={{ py: 2, bgcolor: '#f9f9f9', borderBottom: '2px solid #003366' }}>
+                        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-start', pl: 3 }}>
+                          <Button
+                            variant="contained"
+                            startIcon={<FolderOpenIcon />}
+                            onClick={() => handleEditarLegajo(persona)}
+                            sx={{
+                              bgcolor: '#5C6BC0',
+                              color: 'white',
+                              textTransform: 'none',
+                              px: 3,
+                              '&:hover': { bgcolor: '#3F51B5' }
+                            }}
+                          >
+                            Editar Legajo
+                          </Button>
+                          <Button
+                            variant="contained"
+                            startIcon={<EditIcon />}
+                            onClick={() => handleEditarEscalafon(persona)}
+                            sx={{
+                              bgcolor: '#EF5350',
+                              color: 'white',
+                              textTransform: 'none',
+                              px: 3,
+                              '&:hover': { bgcolor: '#E53935' }
+                            }}
+                          >
+                            Editar Escalafón
+                          </Button>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
               ))}
             </TableBody>
           </Table>
@@ -478,14 +690,18 @@ const GestionarPersonal = () => {
                 fullWidth
                 label="DNI:"
                 value={dniSearch}
-                onChange={(e) => setDniSearch(e.target.value)}
+                onChange={(e) => {
+                  const valor = e.target.value;
+                  setDniSearch(valor);
+                  handleInputChange('dni', valor);
+                }}
                 placeholder="60605041"
                 inputProps={{ maxLength: 8 }}
               />
               <Button
                 variant="contained"
                 onClick={handleBuscarDNI}
-                disabled={loadingDNI}
+                disabled={true}
                 sx={{
                   bgcolor: '#00C853',
                   color: 'white',
@@ -506,24 +722,31 @@ const GestionarPersonal = () => {
               onChange={(e) => handleInputChange('nombres', e.target.value)}
             />
 
-            <TextField
-              fullWidth
-              label="Apellidos:"
-              value={`${newPersonal.apellido_paterno} ${newPersonal.apellido_materno}`.trim()}
-              onChange={(e) => {
-                const apellidos = e.target.value.split(' ');
-                handleInputChange('apellido_paterno', apellidos[0] || '');
-                handleInputChange('apellido_materno', apellidos[1] || '');
-              }}
-              placeholder="Apellido Paterno Apellido Materno"
-            />
+            {/* Apellidos en la misma fila */}
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                fullWidth
+                label="Apellido Paterno:"
+                value={newPersonal.apellido_paterno}
+                onChange={(e) => handleInputChange('apellido_paterno', e.target.value)}
+                placeholder="Ingrese apellido paterno"
+              />
+
+              <TextField
+                fullWidth
+                label="Apellido Materno:"
+                value={newPersonal.apellido_materno}
+                onChange={(e) => handleInputChange('apellido_materno', e.target.value)}
+                placeholder="Ingrese apellido materno"
+              />
+            </Box>
 
             {/* Componente SearchableSelect para Área */}
             <SearchableSelect
               label="Área:"
-              value={newPersonal.area}
+              value={newPersonal.area_actual_id}
               options={areas}
-              onChange={(value) => handleInputChange('area', value)}
+              onChange={(value) => handleInputChange('area_actual_id', value)}
               placeholder="Buscar área..."
               disabled={loadingAreas}
             />
@@ -531,9 +754,9 @@ const GestionarPersonal = () => {
             {/* Componente SearchableSelect para Cargo */}
             <SearchableSelect
               label="Cargo:"
-              value={newPersonal.cargo}
+              value={newPersonal.cargo_actual}
               options={cargos}
-              onChange={(value) => handleInputChange('cargo', value)}
+              onChange={(value) => handleInputChange('cargo_actual', value)}
               placeholder="Buscar cargo..."
               disabled={loadingAreas}
             />
@@ -541,9 +764,9 @@ const GestionarPersonal = () => {
             {/* Componente SearchableSelect para Régimen */}
             <SearchableSelect
               label="Régimen:"
-              value={newPersonal.regimen}
+              value={newPersonal.regimen_actual_id}
               options={regimenes}
-              onChange={(value) => handleInputChange('regimen', value)}
+              onChange={(value) => handleInputChange('regimen_actual_id', value)}
               placeholder="Buscar régimen..."
               disabled={loadingAreas}
             />
@@ -551,9 +774,9 @@ const GestionarPersonal = () => {
             {/* Componente SearchableSelect para Condición Laboral */}
             <SearchableSelect
               label="Condición Laboral:"
-              value={newPersonal.condicion_laboral}
+              value={newPersonal.condicion_actual_id}
               options={condiciones}
-              onChange={(value) => handleInputChange('condicion_laboral', value)}
+              onChange={(value) => handleInputChange('condicion_actual_id', value)}
               placeholder="Buscar condición..."
               disabled={loadingAreas}
             />
@@ -572,11 +795,11 @@ const GestionarPersonal = () => {
                   py: 1.5,
                 }}
               >
-                {newPersonal.documento ? newPersonal.documento.name : 'Arrastra documento y/o resolución'}
+                {newPersonal.foto ? newPersonal.foto.name : 'Subir foto o documento (opcional)'}
                 <input
                   type="file"
                   hidden
-                  accept=".pdf,.doc,.docx"
+                  accept="image/*,.pdf,.doc,.docx"
                   onChange={handleFileChange}
                 />
               </Button>
@@ -599,7 +822,10 @@ const GestionarPersonal = () => {
             Cancelar
           </Button>
           <Button
-            onClick={handleAgregarPersonal}
+            onClick={() => {
+              console.log('🔴 BOTÓN CONFIRMAR CLICKEADO');
+              handleAgregarPersonal();
+            }}
             variant="contained"
             sx={{
               bgcolor: '#f44336',

@@ -24,21 +24,53 @@ class PersonalSerializer(serializers.ModelSerializer):
 class PersonalListSerializer(serializers.ModelSerializer):
     nombre_completo = serializers.ReadOnlyField()
     area_nombre = serializers.CharField(source='area_actual.nombre', read_only=True)
-    cargo = serializers.CharField(source='cargo_actual', read_only=True)
+    regimen_nombre = serializers.CharField(source='regimen_actual.nombre', read_only=True)
+    condicion_nombre = serializers.CharField(source='condicion_actual.nombre', read_only=True)
+    cargo_nombre = serializers.SerializerMethodField()
     
     class Meta:
         model = Personal
-        fields = ['id', 'dni', 'nombre_completo', 'area_nombre', 'cargo', 'activo']
+        fields = [
+            'id', 'dni', 'nombre_completo', 'area_nombre', 
+            'regimen_nombre', 'condicion_nombre', 'cargo_nombre', 'activo'
+        ]
+    
+    def get_cargo_nombre(self, obj):
+        if obj.cargo_actual:
+            try:
+                from organizacion.models import Cargo
+                cargo = Cargo.objects.get(id=obj.cargo_actual)
+                return cargo.nombre
+            except (Cargo.DoesNotExist, ValueError):
+                return obj.cargo_actual
+        return None
 
 class PersonalCreateSerializer(serializers.ModelSerializer):
+    # Permitir tanto area_actual como area_actual_id
+    area_actual_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    regimen_actual_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    condicion_actual_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    
     class Meta:
         model = Personal
         fields = [
             'dni', 'nombres', 'apellido_paterno', 'apellido_materno',
             'fecha_nacimiento', 'sexo', 'telefono', 'email', 'direccion',
-            'area_actual', 'regimen_actual', 'condicion_actual', 'cargo_actual',
+            'area_actual', 'area_actual_id', 'regimen_actual', 'regimen_actual_id', 
+            'condicion_actual', 'condicion_actual_id', 'cargo_actual',
             'fecha_ingreso', 'observaciones', 'foto'
         ]
+    
+    def create(self, validated_data):
+        # Manejar los campos _id si vienen
+        if 'area_actual_id' in validated_data:
+            validated_data['area_actual_id'] = validated_data.pop('area_actual_id')
+        if 'regimen_actual_id' in validated_data:
+            validated_data['regimen_actual_id'] = validated_data.pop('regimen_actual_id')
+        if 'condicion_actual_id' in validated_data:
+            validated_data['condicion_actual_id'] = validated_data.pop('condicion_actual_id')
+        
+        return super().create(validated_data)
 
 class EscalafonSerializer(serializers.ModelSerializer):
     personal_nombre = serializers.CharField(source='personal.nombre_completo', read_only=True)

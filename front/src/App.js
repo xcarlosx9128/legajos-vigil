@@ -12,7 +12,9 @@ import Tickets from './pages/Tickets';
 import GestionUsuarios from './pages/admin/GestionUsuarios';
 import GestionAreas from './pages/admin/GestionAreas';
 import ConsultarPersonal from './pages/subgerente/ConsultarPersonal';
-import GestionarPersonal from './pages/GestionarPersonal'; // ⭐ NUEVO
+import GestionarPersonal from './pages/GestionarPersonal';
+import EditarLegajo from './pages/EditarLegajo'; // ⭐ NUEVO
+import EditarHistorialEscalafon from './pages/EditarHistorialEscalafon'; // ⭐ NUEVO
 
 const theme = createTheme({
   palette: {
@@ -71,13 +73,38 @@ function App() {
               }
             />
 
-            {/* ⭐ NUEVA RUTA: Gestionar Personal */}
+            {/* ⭐ GESTIÓN DE PERSONAL */}
+            {/* Página principal de Gestionar Personal */}
             <Route
               path="/gestionar-personal"
               element={
                 <ProtectedRoute>
                   <MainLayout>
                     <GestionarPersonal />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ⭐ NUEVO: Editar Legajo (documentos) */}
+            <Route
+              path="/gestionar-personal/:id/legajo"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <EditarLegajo />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ⭐ NUEVO: Editar Historial Escalafón */}
+            <Route
+              path="/gestionar-personal/:id/escalafon"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <EditarHistorialEscalafon />
                   </MainLayout>
                 </ProtectedRoute>
               }
