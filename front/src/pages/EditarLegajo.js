@@ -8,9 +8,11 @@ import {
   AccordionSummary,
   AccordionDetails,
   Button,
-  List,
-  ListItem,
-  ListItemText,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
   IconButton,
   Dialog,
   DialogTitle,
@@ -29,39 +31,26 @@ import {
   Download as DownloadIcon,
   Visibility as VisibilityIcon,
   ArrowBack as ArrowBackIcon,
+  Description as DescriptionIcon,
 } from '@mui/icons-material';
 import api from '../services/api';
-
-// Categorías de documentos del legajo
-const CATEGORIAS_LEGAJO = [
-  { id: 1, nombre: 'Currículum Vitae Datos', tipos: ['CV', 'DECLARACION'] },
-  { id: 2, nombre: 'Documentos Personales y Familiares del Trabajador', tipos: ['DNI', 'OTRO'] },
-  { id: 3, nombre: 'Documentos de Estudio y de Capacitación', tipos: ['TITULO', 'CERTIFICADO'] },
-  { id: 4, nombre: 'Documentos de la Carrera Laboral', tipos: ['CONTRATO', 'RESOLUCION'] },
-  { id: 5, nombre: 'Documentos del Comportamiento Laboral', tipos: ['MEMORANDO', 'OTRO'] },
-  { id: 6, nombre: 'Documentos Sobre Derechos Económicos', tipos: ['RESOLUCION', 'OTRO'] },
-  { id: 7, nombre: 'Documentos sobre Obligaciones Económicas', tipos: ['RESOLUCION', 'OTRO'] },
-  { id: 8, nombre: 'Documentos Sobre Producción Cultural', tipos: ['CERTIFICADO', 'OTRO'] },
-  { id: 9, nombre: 'Documentos Varios', tipos: ['OTRO'] },
-];
 
 const EditarLegajo = () => {
   const { id } = useParams(); // ID del personal
   const navigate = useNavigate();
   
   const [personal, setPersonal] = useState(null);
-  const [documentos, setDocumentos] = useState([]); // Inicializar como array vacío
+  const [documentos, setDocumentos] = useState([]);
+  const [tiposDocumento, setTiposDocumento] = useState([]); // Los 9 tipos del SIGELP
   const [loading, setLoading] = useState(true);
   const [openAddDialog, setOpenAddDialog] = useState(false);
-  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(null);
+  const [tipoSeleccionado, setTipoSeleccionado] = useState(null);
   
+  // ⭐ FORMULARIO SIMPLIFICADO - Solo 3 campos
   const [nuevoDocumento, setNuevoDocumento] = useState({
     tipo_documento: '',
-    nombre_documento: '',
     descripcion: '',
     archivo: null,
-    numero_documento: '',
-    fecha_documento: '',
   });
 
   useEffect(() => {
@@ -70,63 +59,92 @@ const EditarLegajo = () => {
 
   const cargarDatos = async () => {
     try {
-      const [personalRes, documentosRes] = await Promise.all([
+      console.log('🔄 Cargando datos del personal ID:', id);
+      
+      const [personalRes, documentosRes, tiposRes] = await Promise.all([
         api.get(`/personal/${id}/`),
         api.get(`/legajos/?personal=${id}`),
+        api.get('/tipos-documento/'),
       ]);
       
       setPersonal(personalRes.data);
+      console.log('👤 Personal cargado:', personalRes.data);
       
-      // Manejar respuesta paginada o array directo
       const docs = documentosRes.data.results || documentosRes.data;
-      setDocumentos(Array.isArray(docs) ? docs : []);
+      const documentosArray = Array.isArray(docs) ? docs : [];
+      setDocumentos(documentosArray);
+      console.log('📄 Documentos cargados:', documentosArray);
+      console.log('📊 Total de documentos:', documentosArray.length);
       
-      console.log('✅ Documentos cargados:', docs);
+      const tipos = tiposRes.data.results || tiposRes.data;
+      const tiposArray = Array.isArray(tipos) ? tipos : [];
+      setTiposDocumento(tiposArray);
+      console.log('📋 Tipos de documento cargados:', tiposArray);
+      
     } catch (err) {
-      console.error('Error al cargar datos:', err);
-      setDocumentos([]); // Asegurar que sea un array vacío en caso de error
+      console.error('❌ Error:', err);
+      setDocumentos([]);
+      setTiposDocumento([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenAddDialog = (categoria) => {
-    setCategoriaSeleccionada(categoria);
+  const handleOpenAddDialog = (tipo = null) => {
+    setTipoSeleccionado(tipo);
+    if (tipo) {
+      setNuevoDocumento({
+        tipo_documento: tipo.id,
+        descripcion: '',
+        archivo: null,
+      });
+    }
     setOpenAddDialog(true);
   };
 
   const handleCloseAddDialog = () => {
     setOpenAddDialog(false);
-    setCategoriaSeleccionada(null);
+    setTipoSeleccionado(null);
     setNuevoDocumento({
       tipo_documento: '',
-      nombre_documento: '',
       descripcion: '',
       archivo: null,
-      numero_documento: '',
-      fecha_documento: '',
     });
   };
 
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Validar que sea PDF
+      if (file.type !== 'application/pdf') {
+        alert('Solo se permiten archivos PDF');
+        event.target.value = null;
+        return;
+      }
+      // Validar tamaño máximo 10MB
+      if (file.size > 10 * 1024 * 1024) {
+        alert('El archivo no puede superar los 10MB');
+        event.target.value = null;
+        return;
+      }
+      setNuevoDocumento({ ...nuevoDocumento, archivo: file });
+    }
+  };
+
   const handleAgregarDocumento = async () => {
+    // Validar que haya archivo
+    if (!nuevoDocumento.archivo) {
+      alert('Debe seleccionar un archivo PDF');
+      return;
+    }
+
     try {
       const formData = new FormData();
       formData.append('personal', id);
       formData.append('tipo_documento', nuevoDocumento.tipo_documento);
-      formData.append('nombre_documento', nuevoDocumento.nombre_documento);
-      
-      if (nuevoDocumento.descripcion) {
-        formData.append('descripcion', nuevoDocumento.descripcion);
-      }
-      if (nuevoDocumento.numero_documento) {
-        formData.append('numero_documento', nuevoDocumento.numero_documento);
-      }
-      if (nuevoDocumento.fecha_documento) {
-        formData.append('fecha_documento', nuevoDocumento.fecha_documento);
-      }
-      if (nuevoDocumento.archivo) {
-        formData.append('archivo', nuevoDocumento.archivo);
-      }
+      formData.append('descripcion', nuevoDocumento.descripcion || '');
+      formData.append('archivo', nuevoDocumento.archivo);
+      // La fecha_documento se establece automáticamente en el backend
 
       await api.post('/legajos/', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -137,7 +155,7 @@ const EditarLegajo = () => {
       cargarDatos();
     } catch (err) {
       console.error('Error al agregar documento:', err);
-      alert('Error al agregar documento');
+      alert('Error al agregar documento: ' + (err.response?.data?.detail || err.message));
     }
   };
 
@@ -154,20 +172,47 @@ const EditarLegajo = () => {
     }
   };
 
-  const documentosPorCategoria = (categoria) => {
+  const handleDescargarDocumento = (doc) => {
+    if (doc.archivo) {
+      window.open(doc.archivo, '_blank');
+    }
+  };
+
+  const handleVisualizarDocumento = (doc) => {
+    if (doc.archivo) {
+      window.open(doc.archivo, '_blank');
+    }
+  };
+
+  const documentosPorTipo = (tipoId) => {
     if (!Array.isArray(documentos)) {
-      console.warn('documentos no es un array:', documentos);
       return [];
     }
-    return documentos.filter(doc => categoria.tipos.includes(doc.tipo_documento));
+    return documentos.filter(doc => doc.tipo_documento === tipoId);
+  };
+
+  const formatFecha = (fecha) => {
+    if (!fecha) return '-';
+    return new Date(fecha).toLocaleString('es-PE', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
   };
 
   if (loading) {
-    return <Box sx={{ p: 3 }}>Cargando...</Box>;
+    return (
+      <Box sx={{ p: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+        <Typography>Cargando...</Typography>
+      </Box>
+    );
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3, maxWidth: 1400, margin: '0 auto' }}>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
         <IconButton onClick={() => navigate('/gestionar-personal')} sx={{ mr: 2 }}>
@@ -183,92 +228,126 @@ const EditarLegajo = () => {
         <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
           {personal?.nombre_completo}
         </Typography>
-        <Typography variant="body2" color="textSecondary">
-          DNI: {personal?.dni}
-        </Typography>
+        <Box sx={{ display: 'flex', gap: 3 }}>
+          <Typography variant="body2" color="textSecondary">
+            <strong>DNI:</strong> {personal?.dni}
+          </Typography>
+          <Typography variant="body2" color="textSecondary">
+            <strong>Área:</strong> {personal?.area_nombre || '-'}
+          </Typography>
+          <Typography variant="body2" color="textSecondary">
+            <strong>Cargo:</strong> {personal?.cargo_actual || '-'}
+          </Typography>
+        </Box>
       </Paper>
 
-      {/* Botón Agregar Documento Global */}
+      <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: '#003366' }}>
+        Documentos del Legajo
+      </Typography>
+
+      {/* Botón Agregar Documento */}
       <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => handleOpenAddDialog(CATEGORIAS_LEGAJO[0])}
+          onClick={() => handleOpenAddDialog()}
           sx={{ bgcolor: '#003366', '&:hover': { bgcolor: '#002244' } }}
         >
           Agregar Documento
         </Button>
       </Box>
 
-      {/* Categorías con Acordeones */}
-      {CATEGORIAS_LEGAJO.map((categoria) => {
-        const docs = documentosPorCategoria(categoria);
+      {/* Acordeones con los 9 tipos de documentos del SIGELP */}
+      {tiposDocumento.map((tipo) => {
+        const docs = documentosPorTipo(tipo.id);
         
         return (
-          <Accordion key={categoria.id} defaultExpanded={false}>
+          <Accordion key={tipo.id} defaultExpanded={false}>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
               sx={{
-                bgcolor: '#e0e0e0',
-                '&:hover': { bgcolor: '#d0d0d0' }
+                bgcolor: tipo.color || '#1976d2',
+                color: 'white',
+                '&:hover': { bgcolor: tipo.color ? `${tipo.color}dd` : '#1565c0' }
               }}
             >
-              <Typography sx={{ fontWeight: 'bold' }}>
-                {categoria.id}. {categoria.nombre} ({docs.length})
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                {tipo.numero}. {tipo.nombre} ({docs.length})
               </Typography>
             </AccordionSummary>
-            <AccordionDetails>
+            
+            <AccordionDetails sx={{ p: 0 }}>
               {docs.length > 0 ? (
-                <List>
-                  {docs.map((doc) => (
-                    <ListItem
-                      key={doc.id}
-                      secondaryAction={
-                        <Box>
-                          <IconButton edge="end" sx={{ mr: 1 }}>
-                            <VisibilityIcon />
-                          </IconButton>
-                          <IconButton edge="end" sx={{ mr: 1 }}>
-                            <DownloadIcon />
-                          </IconButton>
-                          <IconButton 
-                            edge="end" 
-                            onClick={() => handleEliminarDocumento(doc.id)}
-                            sx={{ color: 'error.main' }}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </Box>
-                      }
-                      sx={{
-                        border: '1px solid #e0e0e0',
-                        borderRadius: 1,
-                        mb: 1,
-                        bgcolor: 'white'
-                      }}
-                    >
-                      <ListItemText
-                        primary={doc.nombre_documento}
-                        secondary={`${doc.tipo_documento_display || doc.tipo_documento} - ${doc.fecha_documento || 'Sin fecha'}`}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                      <TableCell sx={{ fontWeight: 'bold', width: '50px' }}>N°</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>FECHA</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>DESCRIPCIÓN</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>ACCIONES</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {docs.map((doc, index) => (
+                      <TableRow key={doc.id} hover>
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {formatFecha(doc.fecha_documento)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {doc.descripcion || 'Sin descripción'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+                            <IconButton
+                              size="small"
+                              color="primary"
+                              onClick={() => handleVisualizarDocumento(doc)}
+                              title="Visualizar"
+                            >
+                              <VisibilityIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              color="info"
+                              onClick={() => handleDescargarDocumento(doc)}
+                              title="Descargar"
+                            >
+                              <DownloadIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => handleEliminarDocumento(doc.id)}
+                              title="Eliminar"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               ) : (
-                <Typography color="textSecondary" sx={{ textAlign: 'center', py: 2 }}>
-                  No hay documentos en esta categoría
-                </Typography>
+                <Box sx={{ p: 3, textAlign: 'center' }}>
+                  <Typography color="textSecondary" sx={{ mb: 2 }}>
+                    No hay documentos en esta categoría
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    startIcon={<AddIcon />}
+                    onClick={() => handleOpenAddDialog(tipo)}
+                    size="small"
+                  >
+                    Agregar documento aquí
+                  </Button>
+                </Box>
               )}
-              
-              <Button
-                variant="outlined"
-                startIcon={<AddIcon />}
-                onClick={() => handleOpenAddDialog(categoria)}
-                fullWidth
-                sx={{ mt: 2 }}
-              >
-                Agregar a esta categoría
-              </Button>
             </AccordionDetails>
           </Accordion>
         );
@@ -277,77 +356,51 @@ const EditarLegajo = () => {
       {/* Dialog de Agregar Documento */}
       <Dialog open={openAddDialog} onClose={handleCloseAddDialog} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ bgcolor: '#003366', color: 'white' }}>
-          Agregar Documento - {categoriaSeleccionada?.nombre}
+          Agregar Documento
+          {tipoSeleccionado && ` - ${tipoSeleccionado.nombre}`}
         </DialogTitle>
         <DialogContent sx={{ mt: 2 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <FormControl fullWidth>
+            <FormControl fullWidth required>
               <InputLabel>Tipo de Documento</InputLabel>
               <Select
                 value={nuevoDocumento.tipo_documento}
                 onChange={(e) => setNuevoDocumento({ ...nuevoDocumento, tipo_documento: e.target.value })}
                 label="Tipo de Documento"
               >
-                {categoriaSeleccionada?.tipos.map((tipo) => (
-                  <MenuItem key={tipo} value={tipo}>{tipo}</MenuItem>
+                {tiposDocumento.map((tipo) => (
+                  <MenuItem key={tipo.id} value={tipo.id}>
+                    {tipo.nombre}
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>
 
             <TextField
               fullWidth
-              label="Nombre del Documento"
-              value={nuevoDocumento.nombre_documento}
-              onChange={(e) => setNuevoDocumento({ ...nuevoDocumento, nombre_documento: e.target.value })}
-            />
-
-            <TextField
-              fullWidth
               label="Descripción"
-              multiline
-              rows={2}
               value={nuevoDocumento.descripcion}
               onChange={(e) => setNuevoDocumento({ ...nuevoDocumento, descripcion: e.target.value })}
+              placeholder="Descripción del documento"
             />
 
-            <TextField
-              fullWidth
-              label="Número de Documento (opcional)"
-              value={nuevoDocumento.numero_documento}
-              onChange={(e) => setNuevoDocumento({ ...nuevoDocumento, numero_documento: e.target.value })}
-            />
-
-            <TextField
-              fullWidth
-              type="date"
-              label="Fecha del Documento"
-              value={nuevoDocumento.fecha_documento}
-              onChange={(e) => setNuevoDocumento({ ...nuevoDocumento, fecha_documento: e.target.value })}
-              InputLabelProps={{ shrink: true }}
-            />
-
-            <Button
-              variant="outlined"
-              component="label"
-              fullWidth
-            >
-              {nuevoDocumento.archivo ? nuevoDocumento.archivo.name : 'Seleccionar Archivo'}
-              <input
-                type="file"
-                hidden
-                onChange={(e) => setNuevoDocumento({ ...nuevoDocumento, archivo: e.target.files[0] })}
-              />
-            </Button>
+            <Box>
+              <Button variant="outlined" component="label" fullWidth>
+                {nuevoDocumento.archivo ? <>📎 {nuevoDocumento.archivo.name}</> : 'Seleccionar archivo'}
+                <input
+                  type="file"
+                  hidden
+                  onChange={handleFileChange}
+                  accept=".pdf"
+                />
+              </Button>
+            </Box>
           </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
+        <DialogActions>
           <Button onClick={handleCloseAddDialog}>Cancelar</Button>
-          <Button 
-            onClick={handleAgregarDocumento} 
-            variant="contained"
-            disabled={!nuevoDocumento.tipo_documento || !nuevoDocumento.nombre_documento}
-          >
-            Agregar
+          <Button onClick={handleAgregarDocumento} disabled={!nuevoDocumento.archivo}>
+            Agregar Documento
           </Button>
         </DialogActions>
       </Dialog>

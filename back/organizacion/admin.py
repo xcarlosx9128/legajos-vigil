@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Area, Regimen, CondicionLaboral, Cargo
+from .models import Area, Regimen, CondicionLaboral, Cargo, TipoDocumento
 
 
 @admin.register(Area)
@@ -92,3 +92,35 @@ class CargoAdmin(admin.ModelAdmin):
     )
     
     readonly_fields = ['fecha_creacion']
+
+
+@admin.register(TipoDocumento)
+class TipoDocumentoAdmin(admin.ModelAdmin):
+    list_display = ['numero', 'nombre', 'color_box', 'activo', 'fecha_creacion']
+    list_filter = ['activo', 'fecha_creacion']
+    search_fields = ['nombre', 'descripcion']
+    ordering = ['numero']
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('numero', 'nombre')
+        }),
+        ('Detalles', {
+            'fields': ('descripcion', 'color', 'activo')
+        }),
+        ('Fechas', {
+            'fields': ('fecha_creacion', 'fecha_actualizacion'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ['fecha_creacion', 'fecha_actualizacion']
+    
+    def color_box(self, obj):
+        """Muestra una cajita con el color del tipo"""
+        from django.utils.html import format_html
+        return format_html(
+            '<div style="width: 50px; height: 20px; background-color: {}; border: 1px solid #ccc;"></div>',
+            obj.color
+        )
+    color_box.short_description = 'Color'

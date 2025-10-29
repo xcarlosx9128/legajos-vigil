@@ -24,6 +24,8 @@ import {
   Chip,
   Alert,
   CircularProgress,
+  InputAdornment,
+  Grid,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -31,6 +33,7 @@ import {
   PictureAsPdf as PdfIcon,
   Edit as EditIcon,
   FolderOpen as FolderOpenIcon,
+  Clear as ClearIcon,
 } from '@mui/icons-material';
 import api from '../services/api';
 import SearchableSelect from '../components/SearchableSelect';
@@ -38,12 +41,17 @@ import SearchableSelect from '../components/SearchableSelect';
 const GestionarPersonal = () => {
   const navigate = useNavigate();
   
-  const [searchValue, setSearchValue] = useState('');
+  // ✅ UN SOLO CAMPO DE BÚSQUEDA (busca por DNI O Nombre)
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // ✅ FILTROS SEPARADOS
   const [filters, setFilters] = useState({
     area: '',
+    cargo: '',
     regimen: '',
     condicion: '',
   });
+  
   const [personal, setPersonal] = useState([]);
   const [areas, setAreas] = useState([]);
   const [regimenes, setRegimenes] = useState([]);
@@ -64,11 +72,26 @@ const GestionarPersonal = () => {
     cargo_actual: '',
     regimen_actual_id: '',
     condicion_actual_id: '',
-    foto: null,
+    documento: null, // Cambiado de foto a documento
   });
   const [dniSearch, setDniSearch] = useState('');
   const [loadingDNI, setLoadingDNI] = useState(false);
   const [expandedRow, setExpandedRow] = useState(null);
+
+  // ✅ Validar si todos los campos están completos
+  const todosLosCamposCompletos = () => {
+    return (
+      newPersonal.dni?.length === 8 &&
+      newPersonal.nombres?.trim() &&
+      newPersonal.apellido_paterno?.trim() &&
+      newPersonal.apellido_materno?.trim() &&
+      newPersonal.area_actual_id &&
+      newPersonal.cargo_actual &&
+      newPersonal.regimen_actual_id &&
+      newPersonal.condicion_actual_id &&
+      newPersonal.documento !== null // Validar que haya un PDF
+    );
+  };
 
   useEffect(() => {
     cargarDatos();
@@ -82,8 +105,6 @@ const GestionarPersonal = () => {
       const response = await api.get('/personal/');
       const data = response.data.results || response.data;
       console.log('✅ Personal cargado:', data.length, 'registros');
-      console.log('📋 Primer registro de ejemplo:', JSON.stringify(data[0], null, 2));
-      console.log('🔍 Campos disponibles:', data[0] ? Object.keys(data[0]) : 'No hay registros');
       setPersonal(data);
     } catch (err) {
       console.error('❌ Error al cargar personal:', err);
@@ -105,12 +126,10 @@ const GestionarPersonal = () => {
           const response = await api.get(url);
           const data = response.data;
           
-          // Si tiene paginación
           if (data.results) {
             allData = [...allData, ...data.results];
-            url = data.next; // Siguiente página
+            url = data.next;
           } else {
-            // Si no tiene paginación, devolver todo
             allData = data;
             url = null;
           }
@@ -119,7 +138,6 @@ const GestionarPersonal = () => {
         return allData;
       };
 
-      // Cargar todos los datos de forma paralela
       const [areasData, regimenesData, condicionesData, cargosData] = await Promise.all([
         obtenerTodos('/areas/'),
         obtenerTodos('/regimenes/'),
@@ -141,36 +159,57 @@ const GestionarPersonal = () => {
     }
   };
 
-  const handleSearch = async () => {
+  // ✅ FUNCIÓN DE BÚSQUEDA Y FILTRADO CORREGIDA
+  const aplicarFiltros = async () => {
     setLoading(true);
     setError('');
     
     try {
       const params = new URLSearchParams();
       
-      if (searchValue.trim()) params.append('search', searchValue.trim());
-      if (filters.area) params.append('area', filters.area);
-      if (filters.regimen) params.append('regimen', filters.regimen);
-      if (filters.condicion) params.append('condicion', filters.condicion);
+      // ✅ BÚSQUEDA POR DNI O NOMBRE (en un solo campo)
+      if (searchQuery.trim()) {
+        params.append('search', searchQuery.trim());
+        console.log('🔍 Buscando por DNI o Nombre:', searchQuery.trim());
+      }
+      
+      // ✅ FILTROS ADICIONALES
+      if (filters.area) {
+        params.append('area', filters.area);
+        console.log('🔍 Filtro Área:', filters.area);
+      }
+      if (filters.cargo) {
+        params.append('cargo', filters.cargo);
+        console.log('🔍 Filtro Cargo:', filters.cargo);
+      }
+      if (filters.regimen) {
+        params.append('regimen', filters.regimen);
+        console.log('🔍 Filtro Régimen:', filters.regimen);
+      }
+      if (filters.condicion) {
+        params.append('condicion', filters.condicion);
+        console.log('🔍 Filtro Condición:', filters.condicion);
+      }
 
       // Si no hay ningún filtro, cargar TODO el personal
-      if (!searchValue.trim() && !filters.area && !filters.regimen && !filters.condicion) {
+      if (!searchQuery.trim() && !filters.area && !filters.cargo && !filters.regimen && !filters.condicion) {
         console.log('📥 Sin filtros, cargando TODO el personal...');
-        const response = await api.get('/personal/');
-        const data = response.data.results || response.data;
-        setPersonal(data);
+        await cargarTodoElPersonal();
         return;
       }
 
-      const response = await api.get(`/personal/buscar-filtros/?${params.toString()}`);
+      console.log('🌐 Llamando a API con parámetros:', params.toString());
+      const response = await api.get(`/personal/?${params.toString()}`);
+      const data = response.data.results || response.data;
       
-      setPersonal(response.data);
+      console.log('✅ Resultados encontrados:', data.length);
+      setPersonal(data);
       
-      if (response.data.length === 0) {
+      if (data.length === 0) {
         setError('No se encontraron resultados con los criterios especificados');
       }
     } catch (err) {
-      console.error('Error al buscar personal:', err);
+      console.error('❌ Error al buscar personal:', err);
       setError('Error al buscar personal');
       setPersonal([]);
     } finally {
@@ -178,8 +217,17 @@ const GestionarPersonal = () => {
     }
   };
 
-  const aplicarFiltros = () => {
-    handleSearch();
+  // ✅ LIMPIAR TODOS LOS FILTROS
+  const limpiarFiltros = () => {
+    setSearchQuery('');
+    setFilters({
+      area: '',
+      cargo: '',
+      regimen: '',
+      condicion: '',
+    });
+    setError('');
+    cargarTodoElPersonal();
   };
 
   const handleOpenAddDialog = () => {
@@ -194,7 +242,7 @@ const GestionarPersonal = () => {
       cargo_actual: '',
       regimen_actual_id: '',
       condicion_actual_id: '',
-      foto: null,
+      documento: null,
     });
   };
 
@@ -213,38 +261,137 @@ const GestionarPersonal = () => {
     setError('');
     
     try {
-      const response = await api.get(`/personal/buscar-dni/${dniSearch}/`);
+      const response = await fetch(`https://apiperu.dev/api/dni/${dniSearch}`, {
+        headers: { 'Authorization': `Bearer ${process.env.REACT_APP_API_PERU_TOKEN}` }
+      });
       
-      // Actualizar tanto dniSearch como newPersonal.dni para mantenerlos sincronizados
-      setDniSearch(response.data.dni);
+      if (!response.ok) throw new Error('DNI no encontrado');
       
-      setNewPersonal(prev => ({
-        ...prev,
-        dni: response.data.dni,
-        nombres: response.data.nombres,
-        apellido_paterno: response.data.apellido_paterno,
-        apellido_materno: response.data.apellido_materno,
-      }));
+      const data = await response.json();
+      
+      if (data.success) {
+        setNewPersonal(prev => ({
+          ...prev,
+          nombres: data.data.nombres || '',
+          apellido_paterno: data.data.apellido_paterno || '',
+          apellido_materno: data.data.apellido_materno || '',
+        }));
+      }
     } catch (err) {
-      console.error('Error al buscar DNI:', err);
-      setError('No se encontró información con ese DNI');
+      setError('No se pudo consultar el DNI. Ingrese los datos manualmente.');
     } finally {
       setLoadingDNI(false);
     }
   };
 
   const handleInputChange = (field, value) => {
-    setNewPersonal(prev => ({
+    setNewPersonal((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
   const handleFileChange = (e) => {
-    setNewPersonal(prev => ({
-      ...prev,
-      foto: e.target.files[0]
-    }));
+    const file = e.target.files[0];
+    if (file) {
+      // Validar que sea un PDF
+      if (file.type === 'application/pdf') {
+        setNewPersonal((prev) => ({
+          ...prev,
+          documento: file,
+        }));
+        setError(''); // Limpiar errores previos
+      } else {
+        setError('Solo se permiten archivos PDF');
+        e.target.value = ''; // Limpiar el input
+      }
+    }
+  };
+
+  const handleAgregarPersonal = async () => {
+    console.log('🟢 Iniciando proceso de agregar personal...');
+    console.log('📋 Datos a enviar:', newPersonal);
+
+    // Validaciones
+    if (!newPersonal.dni || newPersonal.dni.length !== 8) {
+      setError('El DNI debe tener 8 dígitos');
+      return;
+    }
+    if (!newPersonal.nombres?.trim()) {
+      setError('El nombre es obligatorio');
+      return;
+    }
+    if (!newPersonal.apellido_paterno?.trim()) {
+      setError('El apellido paterno es obligatorio');
+      return;
+    }
+    if (!newPersonal.apellido_materno?.trim()) {
+      setError('El apellido materno es obligatorio');
+      return;
+    }
+    if (!newPersonal.area_actual_id) {
+      setError('Debe seleccionar un área');
+      return;
+    }
+    if (!newPersonal.cargo_actual) {
+      setError('Debe seleccionar un cargo');
+      return;
+    }
+    if (!newPersonal.regimen_actual_id) {
+      setError('Debe seleccionar un régimen');
+      return;
+    }
+    if (!newPersonal.condicion_actual_id) {
+      setError('Debe seleccionar una condición laboral');
+      return;
+    }
+    if (!newPersonal.documento) {
+      setError('Debe adjuntar un documento PDF');
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('dni', newPersonal.dni);
+      formData.append('nombres', newPersonal.nombres.trim());
+      formData.append('apellido_paterno', newPersonal.apellido_paterno.trim());
+      formData.append('apellido_materno', newPersonal.apellido_materno.trim());
+      formData.append('area_actual_id', newPersonal.area_actual_id);
+      formData.append('cargo_actual', newPersonal.cargo_actual);
+      formData.append('regimen_actual_id', newPersonal.regimen_actual_id);
+      formData.append('condicion_actual_id', newPersonal.condicion_actual_id);
+      
+      // Agregar documento PDF
+      if (newPersonal.documento) {
+        formData.append('documento', newPersonal.documento);
+      }
+
+      console.log('📤 Enviando a API...');
+      const response = await api.post('/personal/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      console.log('✅ Personal agregado exitosamente:', response.data);
+      
+      handleCloseAddDialog();
+      await cargarTodoElPersonal();
+      
+      alert('Personal agregado exitosamente');
+    } catch (err) {
+      console.error('❌ Error al agregar personal:', err);
+      let errorMsg = 'Error al agregar el personal';
+      
+      if (err.response?.data) {
+        const errors = err.response.data;
+        if (typeof errors === 'object') {
+          errorMsg = Object.entries(errors)
+            .map(([key, msgs]) => `${key}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+            .join(' | ');
+        }
+      }
+      setError(errorMsg);
+      alert('Error: ' + errorMsg);
+    }
   };
 
   const handleToggleRow = (personaId) => {
@@ -252,131 +399,27 @@ const GestionarPersonal = () => {
   };
 
   const handleVisualizarLegajo = (persona) => {
-    console.log('Visualizar Legajo:', persona);
-    // TODO: Navegar a /personal/:id/legajo?modo=lectura
-    // O abrir modal con documentos en modo lectura
-    alert(`Visualizar Legajo de ${persona.nombre_completo}\n\nEsta funcionalidad mostrará todos los documentos del personal en modo lectura.`);
-  };
-
-  const handleVisualizarEscalafon = (persona) => {
-    console.log('Visualizar Escalafón:', persona);
-    // TODO: Mostrar modal con historial completo del escalafón
-    alert(`Visualizar Escalafón de ${persona.nombre_completo}\n\nDNI: ${persona.dni}\nÁrea: ${persona.area_nombre || 'Sin área'}\nCargo: ${persona.cargo_nombre || '-'}\nRégimen: ${persona.regimen_nombre || '-'}\nCondición: ${persona.condicion_nombre || '-'}`);
-  };
-
-  const handleEditarLegajo = (persona) => {
-    console.log('Editar Legajo:', persona);
     navigate(`/gestionar-personal/${persona.id}/legajo`);
   };
 
-  const handleEditarEscalafon = (persona) => {
-    console.log('Editar Escalafón:', persona);
+  const handleEditarLegajo = (persona) => {
+    navigate(`/gestionar-personal/${persona.id}/legajo`);
+  };
+
+  const handleVisualizarEscalafon = (persona) => {
     navigate(`/gestionar-personal/${persona.id}/escalafon`);
   };
 
-  const handleAgregarPersonal = async () => {
-    console.log('🔍 INICIANDO PROCESO DE AGREGAR PERSONAL');
-    console.log('📋 Estado completo de newPersonal:', JSON.stringify(newPersonal, null, 2));
-    
-    // Validaciones
-    if (!newPersonal.dni) {
-      console.log('❌ FALTA DNI');
-      setError('Por favor ingrese el DNI');
-      return;
-    }
-    if (!newPersonal.nombres) {
-      console.log('❌ FALTA NOMBRES');
-      setError('Por favor ingrese el nombre');
-      return;
-    }
-    if (!newPersonal.apellido_paterno) {
-      console.log('❌ FALTA APELLIDO PATERNO');
-      setError('Por favor ingrese el apellido paterno');
-      return;
-    }
-
-    console.log('✅ VALIDACIÓN PASADA');
-    console.log('📝 Datos a enviar:', newPersonal);
-
-    try {
-      const formData = new FormData();
-      
-      // Agregar cada campo al FormData
-      Object.keys(newPersonal).forEach(key => {
-        if (key !== 'foto') {
-          const value = newPersonal[key];
-          // Enviar incluso si es vacío o 0, excepto null/undefined
-          if (value !== null && value !== undefined && value !== '') {
-            formData.append(key, value);
-            console.log(`✅ Agregando ${key}:`, value);
-          } else {
-            console.log(`⚠️ Omitiendo ${key} (valor vacío):`, value);
-          }
-        }
-      });
-      
-      if (newPersonal.foto) {
-        formData.append('foto', newPersonal.foto);
-        console.log('📎 Foto agregada:', newPersonal.foto.name);
-      }
-
-      // Mostrar todo lo que se enviará
-      console.log('🚀 Enviando datos al servidor...');
-      console.log('📦 FormData entries:');
-      for (let pair of formData.entries()) {
-        console.log(`  ${pair[0]}: ${pair[1]}`);
-      }
-
-      const response = await api.post('/personal/', formData, {
-        headers: { 
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-
-      console.log('✅ Personal agregado exitosamente:', response.data);
-      
-      handleCloseAddDialog();
-      
-      // Recargar TODO el personal
-      console.log('🔄 Recargando lista completa de personal...');
-      await cargarTodoElPersonal();
-      
-      alert('Personal agregado exitosamente');
-    } catch (err) {
-      console.error('❌ Error completo:', err);
-      console.error('❌ Error response:', err.response);
-      console.error('❌ Error data:', err.response?.data);
-      
-      // Mostrar error más detallado
-      let errorMsg = 'Error al agregar personal';
-      if (err.response?.data) {
-        if (typeof err.response.data === 'string') {
-          errorMsg = err.response.data;
-        } else if (err.response.data.error) {
-          errorMsg = err.response.data.error;
-        } else if (err.response.data.detail) {
-          errorMsg = err.response.data.detail;
-        } else {
-          // Mostrar todos los errores de validación
-          const errors = Object.entries(err.response.data)
-            .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
-            .join(' | ');
-          errorMsg = errors || errorMsg;
-        }
-      }
-      
-      console.error('📢 ERROR FINAL:', errorMsg);
-      setError(errorMsg);
-      alert('Error: ' + errorMsg);
-    }
+  const handleEditarEscalafon = (persona) => {
+    navigate(`/gestionar-personal/${persona.id}/escalafon`);
   };
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header con botón añadir */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: 500 }}>
-          Buscar Personal
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#003366' }}>
+          Gestionar Personal
         </Typography>
         <Button
           variant="contained"
@@ -384,124 +427,152 @@ const GestionarPersonal = () => {
           onClick={handleOpenAddDialog}
           sx={{
             bgcolor: '#003366',
-            '&:hover': { bgcolor: '#002244' },
-            textTransform: 'none',
+            color: 'white',
             fontWeight: 'bold',
             px: 3,
+            '&:hover': { bgcolor: '#002244' },
           }}
         >
           Añadir Nuevo Personal
         </Button>
       </Box>
 
-      {/* Barra de Búsqueda y Filtros */}
-      <Paper 
-        elevation={0} 
-        sx={{ 
-          p: 2.5, 
-          mb: 3, 
-          bgcolor: 'white',
-          border: '1px solid #e0e0e0',
-          borderRadius: 1
-        }}
-      >
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-          <TextField
-            placeholder="Ingresar DNI, Nombre, Cargo"
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-            size="small"
-            sx={{ 
-              minWidth: '280px',
-              flex: '1 1 280px',
-              '& .MuiOutlinedInput-root': {
-                bgcolor: 'white',
-              }
-            }}
-            InputProps={{
-              endAdornment: (
-                <IconButton size="small" onClick={handleSearch}>
-                  <SearchIcon />
-                </IconButton>
-              ),
-            }}
-          />
+      {/* Filtros */}
+      <Paper elevation={2} sx={{ p: 2.5, mb: 3 }}>
+        <Grid container spacing={1.5} alignItems="center">
+          {/* Búsqueda por DNI o Nombre */}
+          <Grid item xs={12} md={3.5}>
+            <TextField
+              fullWidth
+              label="Buscar por DNI o Nombre"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && aplicarFiltros()}
+              placeholder="Ej: 12345678 o Juan Pérez"
+              size="small"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
 
-          <FormControl 
-            size="small" 
-            sx={{ minWidth: '200px', flex: '0 1 200px' }}
-            disabled={loadingAreas}
-          >
-            <InputLabel>Buscar Área</InputLabel>
-            <Select
-              value={filters.area}
-              onChange={(e) => setFilters({ ...filters, area: e.target.value })}
-              label="Buscar Área"
-              sx={{ bgcolor: 'white' }}
-            >
-              <MenuItem value="">Todas</MenuItem>
-              {areas.map((area) => (
-                <MenuItem key={area.id} value={area.nombre}>
-                  {area.nombre}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          {/* Filtro por Área */}
+          <Grid item xs={6} md={1.75}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Área</InputLabel>
+              <Select
+                value={filters.area}
+                onChange={(e) => setFilters({ ...filters, area: e.target.value })}
+                label="Área"
+                sx={{ minWidth: '120px' }}
+              >
+                <MenuItem value="">Todas</MenuItem>
+                {areas.map((area) => (
+                  <MenuItem key={area.id} value={area.id}>
+                    {area.nombre}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
 
-          <FormControl size="small" sx={{ minWidth: '180px', flex: '0 1 180px' }}>
-            <InputLabel>Buscar Régimen</InputLabel>
-            <Select
-              value={filters.regimen}
-              onChange={(e) => setFilters({ ...filters, regimen: e.target.value })}
-              label="Buscar Régimen"
-              sx={{ bgcolor: 'white' }}
-            >
-              <MenuItem value="">Todos</MenuItem>
-              {regimenes.map((regimen) => (
-                <MenuItem key={regimen.id} value={regimen.nombre}>
-                  {regimen.nombre}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          {/* Filtro por Cargo */}
+          <Grid item xs={6} md={1.75}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Cargo</InputLabel>
+              <Select
+                value={filters.cargo}
+                onChange={(e) => setFilters({ ...filters, cargo: e.target.value })}
+                label="Cargo"
+                sx={{ minWidth: '120px' }}
+              >
+                <MenuItem value="">Todos</MenuItem>
+                {cargos.map((cargo) => (
+                  <MenuItem key={cargo.id} value={cargo.id}>
+                    {cargo.nombre}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
 
-          <FormControl size="small" sx={{ minWidth: '220px', flex: '0 1 220px' }}>
-            <InputLabel>Buscar Condición Laboral</InputLabel>
-            <Select
-              value={filters.condicion}
-              onChange={(e) => setFilters({ ...filters, condicion: e.target.value })}
-              label="Buscar Condición Laboral"
-              sx={{ bgcolor: 'white' }}
-            >
-              <MenuItem value="">Todas</MenuItem>
-              {condiciones.map((condicion) => (
-                <MenuItem key={condicion.id} value={condicion.nombre}>
-                  {condicion.nombre}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          {/* Filtro por Régimen */}
+          <Grid item xs={6} md={1.75}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Régimen</InputLabel>
+              <Select
+                value={filters.regimen}
+                onChange={(e) => setFilters({ ...filters, regimen: e.target.value })}
+                label="Régimen"
+                sx={{ minWidth: '140px' }}
+              >
+                <MenuItem value="">Todos</MenuItem>
+                {regimenes.map((regimen) => (
+                  <MenuItem key={regimen.id} value={regimen.id}>
+                    {regimen.nombre}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
 
-          <Button
-            variant="contained"
-            onClick={aplicarFiltros}
-            disabled={loading}
-            sx={{
-              bgcolor: '#424242',
-              color: 'white',
-              textTransform: 'uppercase',
-              fontWeight: 500,
-              px: 3,
-              minWidth: '160px',
-              '&:hover': {
-                bgcolor: '#212121',
-              },
-            }}
-          >
-            {loading ? <CircularProgress size={24} color="inherit" /> : 'Aplicar Filtros'}
-          </Button>
-        </Box>
+          {/* Filtro por Condición */}
+          <Grid item xs={6} md={1.75}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Condición</InputLabel>
+              <Select
+                value={filters.condicion}
+                onChange={(e) => setFilters({ ...filters, condicion: e.target.value })}
+                label="Condición"
+                sx={{ minWidth: '140px' }}
+              >
+                <MenuItem value="">Todas</MenuItem>
+                {condiciones.map((condicion) => (
+                  <MenuItem key={condicion.id} value={condicion.id}>
+                    {condicion.nombre}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          {/* Botones de Acción */}
+          <Grid item xs={12} md={1.5}>
+            <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
+              <Button
+                variant="contained"
+                onClick={aplicarFiltros}
+                disabled={loading}
+                size="small"
+                sx={{
+                  bgcolor: '#00C853',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  minWidth: '90px',
+                  '&:hover': { bgcolor: '#00A043' },
+                }}
+              >
+                {loading ? <CircularProgress size={20} color="inherit" /> : 'BUSCAR'}
+              </Button>
+              <IconButton
+                onClick={limpiarFiltros}
+                disabled={loading}
+                size="small"
+                sx={{
+                  color: '#F44336',
+                  border: '1px solid #F44336',
+                  '&:hover': { bgcolor: '#FFEBEE' },
+                }}
+              >
+                <ClearIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          </Grid>
+        </Grid>
       </Paper>
 
       {/* Mensajes de Error */}
@@ -524,70 +595,61 @@ const GestionarPersonal = () => {
           <Table>
             <TableHead>
               <TableRow sx={{ bgcolor: '#003366' }}>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold', py: 2, width: '50px' }}>N°</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold', py: 2 }}>Nombre y Apellidos</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold', py: 2 }}>DNI</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold', py: 2 }}>Área</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold', py: 2 }}>Cargo</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold', py: 2 }}>Régimen</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold', py: 2 }}>Condición Laboral</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold', py: 2, textAlign: 'center', minWidth: '240px' }}>Acciones</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>DNI</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Nombre Completo</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Cargo</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Área</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Régimen</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Condición Laboral</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold', textAlign: 'center' }}>Acciones</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {personal.map((persona, index) => (
+              {personal.map((persona) => (
                 <React.Fragment key={persona.id}>
-                  {/* Fila principal */}
                   <TableRow 
                     hover 
-                    onClick={() => handleToggleRow(persona.id)}
+                    onClick={(e) => {
+                      // No expandir si se hace clic en un botón
+                      if (e.target.closest('button')) return;
+                      handleToggleRow(persona.id);
+                    }}
                     sx={{ 
                       cursor: 'pointer',
-                      bgcolor: expandedRow === persona.id ? '#f5f5f5' : 'inherit',
-                      '&:hover': {
-                        bgcolor: '#f0f0f0'
-                      }
+                      '&:hover': { bgcolor: '#f5f5f5' }
                     }}
                   >
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell sx={{ textTransform: 'uppercase', fontWeight: 500 }}>
-                      {persona.nombre_completo || 'Sin nombre'}
+                    <TableCell>{persona.dni}</TableCell>
+                    <TableCell sx={{ textTransform: 'uppercase' }}>
+                      {persona.nombre_completo || 
+                       `${persona.apellido_paterno || ''} ${persona.apellido_materno || ''}, ${persona.nombres || ''}`.trim() || 
+                       '-'}
                     </TableCell>
-                    <TableCell>{persona.dni || '-'}</TableCell>
-                    <TableCell sx={{ fontSize: '0.875rem' }}>
-                      {persona.area_nombre || 'Sin área'}
-                    </TableCell>
-                    <TableCell>{persona.cargo_nombre || '-'}</TableCell>
+                    <TableCell>{persona.cargo_nombre || persona.cargo_actual || '-'}</TableCell>
+                    <TableCell>{persona.area_nombre || '-'}</TableCell>
                     <TableCell>
                       <Chip 
-                        label={persona.regimen_nombre || 'No especificado'} 
-                        size="small" 
-                        sx={{ 
-                          bgcolor: '#e3f2fd', 
-                          color: '#1976d2', 
-                          fontWeight: 'bold',
-                          fontSize: '0.75rem'
-                        }}
+                        label={persona.regimen_nombre || '-'} 
+                        size="small"
+                        sx={{ bgcolor: '#E3F2FD', color: '#1976D2' }}
                       />
                     </TableCell>
                     <TableCell>
                       <Chip 
-                        label={persona.condicion_nombre || 'No especificado'} 
-                        size="small" 
-                        sx={{ 
-                          bgcolor: '#e8f5e9',
-                          color: '#2e7d32',
-                          fontWeight: 'bold',
-                          fontSize: '0.75rem'
-                        }}
+                        label={persona.condicion_nombre || '-'} 
+                        size="small"
+                        sx={{ bgcolor: '#FFF3E0', color: '#F57C00' }}
                       />
                     </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
                         <Button
                           variant="contained"
                           size="small"
-                          onClick={() => handleVisualizarLegajo(persona)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleVisualizarLegajo(persona);
+                          }}
                           sx={{
                             bgcolor: '#5C6BC0',
                             color: 'white',
@@ -602,9 +664,12 @@ const GestionarPersonal = () => {
                         <Button
                           variant="contained"
                           size="small"
-                          onClick={() => handleVisualizarEscalafon(persona)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleVisualizarEscalafon(persona);
+                          }}
                           sx={{
-                            bgcolor: '#EF5350',
+                            bgcolor: '#F44336',
                             color: 'white',
                             fontSize: '0.75rem',
                             textTransform: 'none',
@@ -618,20 +683,22 @@ const GestionarPersonal = () => {
                     </TableCell>
                   </TableRow>
 
-                  {/* Fila expandida */}
+                  {/* Fila expandida con opciones de edición */}
                   {expandedRow === persona.id && (
                     <TableRow>
-                      <TableCell colSpan={8} sx={{ py: 2, bgcolor: '#f9f9f9', borderBottom: '2px solid #003366' }}>
-                        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-start', pl: 3 }}>
+                      <TableCell colSpan={7} sx={{ py: 2, bgcolor: '#f9f9f9', borderBottom: '2px solid #003366' }}>
+                        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-start', pl: 2 }}>
                           <Button
                             variant="contained"
+                            size="small"
                             startIcon={<FolderOpenIcon />}
                             onClick={() => handleEditarLegajo(persona)}
                             sx={{
                               bgcolor: '#5C6BC0',
                               color: 'white',
+                              fontSize: '0.75rem',
                               textTransform: 'none',
-                              px: 3,
+                              px: 2,
                               '&:hover': { bgcolor: '#3F51B5' }
                             }}
                           >
@@ -639,13 +706,15 @@ const GestionarPersonal = () => {
                           </Button>
                           <Button
                             variant="contained"
+                            size="small"
                             startIcon={<EditIcon />}
                             onClick={() => handleEditarEscalafon(persona)}
                             sx={{
-                              bgcolor: '#EF5350',
+                              bgcolor: '#F44336',
                               color: 'white',
+                              fontSize: '0.75rem',
                               textTransform: 'none',
-                              px: 3,
+                              px: 2,
                               '&:hover': { bgcolor: '#E53935' }
                             }}
                           >
@@ -790,16 +859,16 @@ const GestionarPersonal = () => {
                 sx={{
                   justifyContent: 'flex-start',
                   textTransform: 'none',
-                  color: '#666',
-                  borderColor: '#ccc',
+                  color: newPersonal.documento ? '#00C853' : '#666',
+                  borderColor: newPersonal.documento ? '#00C853' : '#ccc',
                   py: 1.5,
                 }}
               >
-                {newPersonal.foto ? newPersonal.foto.name : 'Subir foto o documento (opcional)'}
+                {newPersonal.documento ? newPersonal.documento.name : 'Adjuntar documento PDF (Obligatorio)'}
                 <input
                   type="file"
                   hidden
-                  accept="image/*,.pdf,.doc,.docx"
+                  accept=".pdf"
                   onChange={handleFileChange}
                 />
               </Button>
@@ -827,6 +896,7 @@ const GestionarPersonal = () => {
               handleAgregarPersonal();
             }}
             variant="contained"
+            disabled={!todosLosCamposCompletos()}
             sx={{
               bgcolor: '#f44336',
               color: 'white',
@@ -834,6 +904,11 @@ const GestionarPersonal = () => {
               px: 4,
               textTransform: 'uppercase',
               '&:hover': { bgcolor: '#d32f2f' },
+              '&:disabled': { 
+                bgcolor: '#ccc', 
+                color: '#666',
+                cursor: 'not-allowed' 
+              },
             }}
           >
             Confirmar

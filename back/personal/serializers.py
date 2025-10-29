@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from .models import Personal, Escalafon, Legajo
 from organizacion.serializers import AreaSerializer, RegimenSerializer, CondicionLaboralSerializer
-from usuarios.serializers import UsuarioListSerializer
+import os
+
 
 class PersonalSerializer(serializers.ModelSerializer):
     nombre_completo = serializers.ReadOnlyField()
@@ -16,10 +17,11 @@ class PersonalSerializer(serializers.ModelSerializer):
             'nombre_completo', 'fecha_nacimiento', 'sexo', 'telefono', 'email',
             'direccion', 'area_actual', 'area_actual_detalle', 'regimen_actual',
             'regimen_actual_detalle', 'condicion_actual', 'condicion_actual_detalle',
-            'cargo_actual', 'fecha_ingreso', 'activo', 'observaciones', 'foto',
+            'cargo_actual', 'fecha_ingreso', 'activo', 'observaciones', 'documento',
             'fecha_creacion', 'fecha_actualizacion'
         ]
         read_only_fields = ['id', 'fecha_creacion', 'fecha_actualizacion']
+
 
 class PersonalListSerializer(serializers.ModelSerializer):
     nombre_completo = serializers.ReadOnlyField()
@@ -45,11 +47,15 @@ class PersonalListSerializer(serializers.ModelSerializer):
                 return obj.cargo_actual
         return None
 
+
 class PersonalCreateSerializer(serializers.ModelSerializer):
     # Permitir tanto area_actual como area_actual_id
     area_actual_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     regimen_actual_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     condicion_actual_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    
+    # Documento es obligatorio
+    documento = serializers.FileField(required=True)
     
     class Meta:
         model = Personal
@@ -58,8 +64,18 @@ class PersonalCreateSerializer(serializers.ModelSerializer):
             'fecha_nacimiento', 'sexo', 'telefono', 'email', 'direccion',
             'area_actual', 'area_actual_id', 'regimen_actual', 'regimen_actual_id', 
             'condicion_actual', 'condicion_actual_id', 'cargo_actual',
-            'fecha_ingreso', 'observaciones', 'foto'
+            'fecha_ingreso', 'observaciones', 'documento'
         ]
+    
+    def validate_documento(self, value):
+        """Validar que el archivo sea un PDF"""
+        if value:
+            if not value.name.lower().endswith('.pdf'):
+                raise serializers.ValidationError("Solo se permiten archivos PDF")
+            # Validar tamaño (máximo 10MB)
+            if value.size > 10 * 1024 * 1024:
+                raise serializers.ValidationError("El archivo no puede superar los 10MB")
+        return value
     
     def create(self, validated_data):
         # Manejar los campos _id si vienen
@@ -71,6 +87,7 @@ class PersonalCreateSerializer(serializers.ModelSerializer):
             validated_data['condicion_actual_id'] = validated_data.pop('condicion_actual_id')
         
         return super().create(validated_data)
+
 
 class EscalafonSerializer(serializers.ModelSerializer):
     personal_nombre = serializers.CharField(source='personal.nombre_completo', read_only=True)
@@ -88,6 +105,7 @@ class EscalafonSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'fecha_registro']
 
+
 class EscalafonCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Escalafon
@@ -97,25 +115,86 @@ class EscalafonCreateSerializer(serializers.ModelSerializer):
             'observaciones'
         ]
 
+
+# ============================================
+# SERIALIZERS ACTUALIZADOS PARA LEGAJO
+# ============================================
+
 class LegajoSerializer(serializers.ModelSerializer):
+    """
+    Serializer completo para lectura de documentos del legajo
+    """
     personal_nombre = serializers.CharField(source='personal.nombre_completo', read_only=True)
-    tipo_documento_display = serializers.CharField(source='get_tipo_documento_display', read_only=True)
+    tipo_documento_id = serializers.IntegerField(source='tipo_documento.id', read_only=True)
+    tipo_documento_nombre = serializers.CharField(source='tipo_documento.nombre', read_only=True)
+    tipo_documento_numero = serializers.IntegerField(source='tipo_documento.numero', read_only=True)
     registrado_por_nombre = serializers.CharField(source='registrado_por.nombre_completo', read_only=True)
+    archivo_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Legajo
         fields = [
-            'id', 'personal', 'personal_nombre', 'tipo_documento',
-            'tipo_documento_display', 'nombre_documento', 'descripcion',
-            'archivo', 'numero_documento', 'fecha_documento', 'fecha_registro',
-            'registrado_por', 'registrado_por_nombre'
+            'id',
+            'personal',
+            'personal_nombre',
+            'tipo_documento',
+            'tipo_documento_id',
+            'tipo_documento_nombre',
+            'tipo_documento_numero',
+            'fecha_registro',  # Usar fecha_registro en lugar de fecha_documento
+            'descripcion',
+            'archivo',
+            'archivo_url',
+            'registrado_por',
+            'registrado_por_nombre',
+            'fecha_creacion',
+            'fecha_modificacion'
         ]
-        read_only_fields = ['id', 'fecha_registro', 'registrado_por']
+        read_only_fields = ['id', 'fecha_registro', 'registrado_por', 'fecha_creacion', 'fecha_modificacion']
+    
+    def get_archivo_url(self, obj):
+        if obj.archivo:
+            request = self.context.get('request')
+            if request is not None:
+                return request.build_absolute_uri(obj.archivo.url)
+            return obj.archivo.url
+        return None
+
 
 class LegajoCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer simplificado para crear documentos del legajo
+    Solo requiere: personal, tipo_documento, descripcion (opcional), archivo (PDF obligatorio)
+    """
     class Meta:
         model = Legajo
         fields = [
-            'personal', 'tipo_documento', 'nombre_documento', 'descripcion',
-            'archivo', 'numero_documento', 'fecha_documento'
+            'personal',
+            'tipo_documento',
+            'descripcion',
+            'archivo'
         ]
+    
+    def validate_archivo(self, value):
+        """
+        Validar que el archivo sea PDF
+        """
+        if not value:
+            raise serializers.ValidationError("El archivo es obligatorio")
+        
+        ext = os.path.splitext(value.name)[1].lower()
+        if ext != '.pdf':
+            raise serializers.ValidationError("Solo se permiten archivos PDF")
+        
+        if value.size > 10 * 1024 * 1024:
+            raise serializers.ValidationError("El archivo no puede superar los 10MB")
+        
+        return value
+    
+    def validate_descripcion(self, value):
+        """
+        La descripción es opcional pero si se proporciona, validar longitud
+        """
+        if value and len(value) > 500:
+            raise serializers.ValidationError("La descripción no puede superar los 500 caracteres")
+        return value

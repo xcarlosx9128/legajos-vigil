@@ -1,6 +1,6 @@
 from django.db import models
 from django.utils import timezone
-from organizacion.models import Area, Regimen, CondicionLaboral
+from organizacion.models import Area, Regimen, CondicionLaboral, TipoDocumento
 
 class Personal(models.Model):
     # Datos personales
@@ -26,7 +26,9 @@ class Personal(models.Model):
     # Control
     activo = models.BooleanField(default=True)
     observaciones = models.TextField(blank=True, null=True)
-    foto = models.ImageField(upload_to='fotos_personal/', blank=True, null=True)
+    
+    # Documento inicial (PDF)
+    documento = models.FileField(upload_to='documentos_personal/', blank=False, null=False)
     
     fecha_creacion = models.DateTimeField(default=timezone.now)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
@@ -44,6 +46,7 @@ class Personal(models.Model):
     def nombre_completo(self):
         return f"{self.nombres} {self.apellido_paterno} {self.apellido_materno}"
 
+# Clase Escalafon
 class Escalafon(models.Model):
     personal = models.ForeignKey(Personal, on_delete=models.CASCADE, related_name='escalafones')
     area = models.ForeignKey(Area, on_delete=models.PROTECT)
@@ -69,29 +72,49 @@ class Escalafon(models.Model):
     def __str__(self):
         return f"{self.personal.nombre_completo} - {self.cargo} ({self.fecha_inicio})"
 
+# Clase Legajo
 class Legajo(models.Model):
-    TIPOS_DOCUMENTO = [
-        ('DNI', 'DNI'),
-        ('TITULO', 'Título Profesional'),
-        ('CV', 'Curriculum Vitae'),
-        ('CONTRATO', 'Contrato'),
-        ('RESOLUCION', 'Resolución'),
-        ('CERTIFICADO', 'Certificado'),
-        ('DECLARACION', 'Declaración Jurada'),
-        ('MEMORANDO', 'Memorando'),
-        ('OTRO', 'Otro'),
-    ]
+    """
+    MODELO SIMPLIFICADO - Solo 4 campos esenciales:
+    - personal (FK)
+    - tipo_documento (FK)
+    - fecha_registro (timestamp automático)
+    - descripcion (opcional)
+    - archivo (solo PDF)
+    """
+    personal = models.ForeignKey(
+        Personal, 
+        on_delete=models.CASCADE, 
+        related_name='legajos'
+    )
+    tipo_documento = models.ForeignKey(
+        TipoDocumento, 
+        on_delete=models.PROTECT,
+        related_name='documentos',
+        help_text="Tipo de documento según los 9 tipos del SIGELP"
+    )
+    fecha_registro = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Fecha y hora de registro del documento (timestamp automático)"
+    )
+    descripcion = models.TextField(
+        blank=True, 
+        null=True,
+        help_text="Descripción opcional del documento"
+    )
+    archivo = models.FileField(
+        upload_to='legajos/%Y/%m/',
+        help_text="Archivo PDF del documento"
+    )
     
-    personal = models.ForeignKey(Personal, on_delete=models.CASCADE, related_name='legajos')
-    tipo_documento = models.CharField(max_length=20, choices=TIPOS_DOCUMENTO)
-    nombre_documento = models.CharField(max_length=200)
-    descripcion = models.TextField(blank=True, null=True)
-    archivo = models.FileField(upload_to='legajos/')
-    numero_documento = models.CharField(max_length=100, blank=True, null=True)
-    fecha_documento = models.DateField(null=True, blank=True)
-    
-    fecha_registro = models.DateTimeField(default=timezone.now)
-    registrado_por = models.ForeignKey('usuarios.Usuario', on_delete=models.PROTECT)
+    # Metadatos
+    registrado_por = models.ForeignKey(
+        'usuarios.Usuario', 
+        on_delete=models.PROTECT,
+        related_name='legajos_registrados'
+    )
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    fecha_modificacion = models.DateTimeField(auto_now=True)
     
     class Meta:
         db_table = 'legajos'
@@ -100,4 +123,11 @@ class Legajo(models.Model):
         ordering = ['-fecha_registro']
     
     def __str__(self):
-        return f"{self.personal.nombre_completo} - {self.nombre_documento}"
+        return f"{self.personal.nombre_completo} - {self.tipo_documento.nombre} - {self.fecha_registro.strftime('%d/%m/%Y')}"
+    
+    def save(self, *args, **kwargs):
+        # Validar que el archivo sea PDF
+        if self.archivo:
+            if not self.archivo.name.lower().endswith('.pdf'):
+                raise ValueError("Solo se permiten archivos PDF")
+        super().save(*args, **kwargs)
