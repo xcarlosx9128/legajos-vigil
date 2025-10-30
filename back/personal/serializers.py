@@ -123,11 +123,22 @@ class EscalafonCreateSerializer(serializers.ModelSerializer):
 class LegajoSerializer(serializers.ModelSerializer):
     """
     Serializer completo para lectura de documentos del legajo
+    ⭐ ACTUALIZADO CON CAMPOS DE SECCIÓN
     """
     personal_nombre = serializers.CharField(source='personal.nombre_completo', read_only=True)
+    
+    # Campos del tipo de documento
     tipo_documento_id = serializers.IntegerField(source='tipo_documento.id', read_only=True)
+    tipo_documento_codigo = serializers.CharField(source='tipo_documento.codigo', read_only=True)  # ⭐ NUEVO
     tipo_documento_nombre = serializers.CharField(source='tipo_documento.nombre', read_only=True)
     tipo_documento_numero = serializers.IntegerField(source='tipo_documento.numero', read_only=True)
+    
+    # ⭐ CAMPOS DE LA SECCIÓN (NUEVOS)
+    tipo_documento_seccion = serializers.IntegerField(source='tipo_documento.seccion.id', read_only=True)
+    seccion_numero = serializers.IntegerField(source='tipo_documento.seccion.numero', read_only=True)
+    seccion_nombre = serializers.CharField(source='tipo_documento.seccion.nombre', read_only=True)
+    seccion_color = serializers.CharField(source='tipo_documento.seccion.color', read_only=True)
+    
     registrado_por_nombre = serializers.CharField(source='registrado_por.nombre_completo', read_only=True)
     archivo_url = serializers.SerializerMethodField()
     
@@ -139,14 +150,20 @@ class LegajoSerializer(serializers.ModelSerializer):
             'personal_nombre',
             'tipo_documento',
             'tipo_documento_id',
+            'tipo_documento_codigo',          # ⭐ NUEVO
             'tipo_documento_nombre',
             'tipo_documento_numero',
-            'fecha_registro',  # Usar fecha_registro en lugar de fecha_documento
+            'tipo_documento_seccion',         # ⭐ NUEVO
+            'seccion_numero',                 # ⭐ NUEVO
+            'seccion_nombre',                 # ⭐ NUEVO
+            'seccion_color',                  # ⭐ NUEVO
+            'fecha_documento',                # ⭐ NUEVO (fecha del documento)
             'descripcion',
             'archivo',
             'archivo_url',
             'registrado_por',
             'registrado_por_nombre',
+            'fecha_registro',                 # Fecha de registro en sistema
             'fecha_creacion',
             'fecha_modificacion'
         ]

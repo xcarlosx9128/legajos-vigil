@@ -1,4 +1,4 @@
-# legajos/urls.py (o tu archivo principal de URLs) - VERSIÓN ACTUALIZADA
+# legajos/urls.py - VERSIÓN ACTUALIZADA CON SECCIONES Y TIPOS
 
 from django.contrib import admin
 from django.urls import path, include
@@ -13,7 +13,8 @@ from organizacion.views import (
     RegimenViewSet,
     CondicionLaboralViewSet,
     CargoViewSet,
-    TipoDocumentoViewSet  # NUEVO
+    SeccionLegajoViewSet,      # NUEVO ⭐
+    TipoDocumentoViewSet        # ACTUALIZADO ⭐
 )
 from personal.views import PersonalViewSet, EscalafonViewSet, LegajoViewSet
 from tickets.views import TicketViewSet
@@ -26,7 +27,8 @@ router.register(r'areas', AreaViewSet, basename='area')
 router.register(r'regimenes', RegimenViewSet, basename='regimen')
 router.register(r'condiciones-laborales', CondicionLaboralViewSet, basename='condicion-laboral')
 router.register(r'cargos', CargoViewSet, basename='cargo')
-router.register(r'tipos-documento', TipoDocumentoViewSet, basename='tipo-documento')  # NUEVO
+router.register(r'secciones-legajo', SeccionLegajoViewSet, basename='seccion-legajo')        # NUEVO ⭐
+router.register(r'tipos-documento', TipoDocumentoViewSet, basename='tipo-documento')         # ACTUALIZADO ⭐
 router.register(r'personal', PersonalViewSet, basename='personal')
 router.register(r'escalafones', EscalafonViewSet, basename='escalafon')
 router.register(r'legajos', LegajoViewSet, basename='legajo')
