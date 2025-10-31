@@ -1,4 +1,4 @@
-# organizacion/models.py - CON SECCIONES Y TIPOS DE DOCUMENTOS
+# organizacion/models.py - TIPOS DE DOCUMENTO GENERALES (SIMPLIFICADO)
 
 from django.db import models
 from django.utils import timezone
@@ -71,16 +71,11 @@ class Cargo(models.Model):
 
 
 # ============================================
-# NUEVO MODELO: SECCION DE LEGAJO (9 SECCIONES PRINCIPALES)
+# SECCIONES DE LEGAJO (9 secciones SIGELP)
 # ============================================
 class SeccionLegajo(models.Model):
     """
     Las 9 secciones principales del legajo SIGELP.
-    Ejemplo:
-    - 1. Currículo Vitae Datos
-    - 2. Documentos Personales y Familiares del Trabajador
-    - 3. Documentos de Estudio y de Capacitación
-    - etc.
     """
     numero = models.IntegerField(
         unique=True,
@@ -127,71 +122,84 @@ class SeccionLegajo(models.Model):
 
 
 # ============================================
-# MODELO ACTUALIZADO: TIPO DE DOCUMENTO (SUBTIPOS DENTRO DE CADA SECCIÓN)
+# ⭐ TIPO DE DOCUMENTO - ULTRA SIMPLIFICADO
 # ============================================
 class TipoDocumento(models.Model):
     """
-    Los tipos de documentos dentro de cada sección del legajo.
-    Ejemplo para Sección 1 (Currículo Vitae):
-    - 1.1 Datos Personales
-    - 1.2 Estudios Realizados
-    - 1.3 Experiencia Laboral
-    - 1.4 Ficha Escalafonaria de trabajador Municipal
+    Tipos de documento GENERALES - Versión ultra simplificada.
+    
+    Cualquier tipo puede agregarse a cualquier sección del legajo.
+    Ya NO tiene: seccion, numero, es_obligatorio
+    Solo tiene: nombre, descripcion, codigo, activo, orden
+    
+    Ejemplos:
+    - Memorándum
+    - Solicitud  
+    - Oficio
+    - Boleta de Pago
+    - Certificado de Estudios
+    - Contrato
+    - Resolución
+    - etc.
     """
-    seccion = models.ForeignKey(
-        SeccionLegajo,
-        on_delete=models.CASCADE,
-        related_name='tipos_documento',
-        help_text="Sección a la que pertenece este tipo"
-    )
-    numero = models.IntegerField(
-        help_text="Número del subtipo dentro de la sección (ej: 1, 2, 3 para 1.1, 1.2, 1.3)"
-    )
-    codigo = models.CharField(
-        max_length=10,
-        unique=True,
-        help_text="Código único del tipo (ej: '1.1', '2.3', '4.15')"
-    )
+    
     nombre = models.CharField(
         max_length=200,
-        help_text="Nombre del tipo de documento"
+        unique=True,
+        help_text="Nombre del tipo de documento (ej: Memorándum, Solicitud, Oficio)"
     )
+    
     descripcion = models.TextField(
         blank=True,
         null=True,
-        help_text="Descripción del tipo de documento"
+        help_text="Descripción opcional del tipo de documento"
     )
+    
+    codigo = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text="Código opcional para identificar el tipo (ej: MEM, SOL, OF)"
+    )
+    
     activo = models.BooleanField(
         default=True,
-        help_text="Indica si el tipo está activo"
+        help_text="Si está desactivado, no aparecerá en los selectores"
     )
-    es_obligatorio = models.BooleanField(
-        default=False,
-        help_text="Indica si es un documento obligatorio"
-    )
+    
     orden = models.IntegerField(
         default=0,
-        help_text="Orden de visualización dentro de la sección"
+        help_text="Orden de visualización en los selectores (menor número = primero)"
     )
-    fecha_creacion = models.DateTimeField(default=timezone.now)
-    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    fecha_creacion = models.DateTimeField(
+        default=timezone.now,
+        help_text="Fecha de creación del registro"
+    )
+    
+    fecha_actualizacion = models.DateTimeField(
+        auto_now=True,
+        help_text="Última actualización del registro"
+    )
     
     class Meta:
         db_table = 'tipos_documento'
         verbose_name = 'Tipo de Documento'
         verbose_name_plural = 'Tipos de Documento'
-        ordering = ['seccion__numero', 'numero']
-        unique_together = [['seccion', 'numero']]
+        ordering = ['orden', 'nombre']
+        indexes = [
+            models.Index(fields=['activo']),
+            models.Index(fields=['nombre']),
+            models.Index(fields=['orden']),
+        ]
     
     def __str__(self):
-        return f"{self.codigo} {self.nombre}"
+        if self.codigo:
+            return f"{self.codigo} - {self.nombre}"
+        return self.nombre
     
     def get_nombre_completo(self):
-        """Retorna el nombre con el código"""
-        return f"{self.codigo} {self.nombre}"
-    
-    def save(self, *args, **kwargs):
-        # Generar código automáticamente si no existe
-        if not self.codigo and self.seccion:
-            self.codigo = f"{self.seccion.numero}.{self.numero}"
-        super().save(*args, **kwargs)
+        """Retorna el nombre completo con código si existe"""
+        if self.codigo:
+            return f"{self.codigo} - {self.nombre}"
+        return self.nombre

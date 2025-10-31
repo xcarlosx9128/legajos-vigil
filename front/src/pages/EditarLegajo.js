@@ -1,4 +1,4 @@
-// EditarLegajo.jsx - VERSIÓN CORREGIDA
+// EditarLegajo.jsx - CON SEARCHABLE SELECT
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -36,6 +36,7 @@ import {
   ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
 import api from '../services/api';
+import SearchableSelect from '../components/SearchableSelect'; // ⭐ IMPORTAR EL COMPONENTE
 
 const EditarLegajo = () => {
   const { id } = useParams();
@@ -62,7 +63,7 @@ const EditarLegajo = () => {
     cargarDatos();
   }, [id]);
 
-  // ⭐ NUEVA FUNCIÓN: Cargar TODOS los tipos de documento recursivamente
+  // Cargar TODOS los tipos de documento recursivamente
   const cargarTodosTipos = async () => {
     let todosLosTipos = [];
     let page = 1;
@@ -98,7 +99,7 @@ const EditarLegajo = () => {
     try {
       console.log('🔄 Cargando datos del personal ID:', id);
       
-      // ⭐ Cargar tipos de documento PRIMERO con la función recursiva
+      // Cargar tipos de documento PRIMERO con la función recursiva
       const todosLosTipos = await cargarTodosTipos();
       setTiposDocumento(todosLosTipos);
       
@@ -143,9 +144,9 @@ const EditarLegajo = () => {
         descripcion: '',
         archivo: null,
       });
-      const tipos = tiposDocumento.filter(t => t.seccion === seccion.id);
-      setTiposFiltrados(tipos);
-      console.log(`📝 Tipos para sección ${seccion.numero}:`, tipos.length);
+      // Mostrar todos los tipos sin filtrar
+      setTiposFiltrados(tiposDocumento);
+      console.log(`📝 Total de tipos disponibles:`, tiposDocumento.length);
     } else {
       setSeccionSeleccionada('');
       setNuevoDocumento({
@@ -179,9 +180,9 @@ const EditarLegajo = () => {
       tipo_documento: '',
     });
     
-    const tipos = tiposDocumento.filter(t => t.seccion === seccionId);
-    setTiposFiltrados(tipos);
-    console.log('📝 Tipos filtrados para sección', seccionId, ':', tipos.length, 'tipos');
+    // Mostrar todos los tipos sin filtrar
+    setTiposFiltrados(tiposDocumento);
+    console.log('📝 Total de tipos disponibles:', tiposDocumento.length);
   };
 
   const handleFileChange = (event) => {
@@ -269,13 +270,6 @@ const EditarLegajo = () => {
     return documentos.filter(doc => doc.seccion === seccionId || doc.tipo_documento_seccion === seccionId);
   };
 
-  const tiposPorSeccion = (seccionId) => {
-    if (!Array.isArray(tiposDocumento)) {
-      return [];
-    }
-    return tiposDocumento.filter(tipo => tipo.seccion === seccionId);
-  };
-
   const formatFecha = (fecha) => {
     if (!fecha) return '-';
     return new Date(fecha).toLocaleString('es-PE', {
@@ -294,7 +288,7 @@ const EditarLegajo = () => {
     return seccion ? `${seccion.numero}. ${seccion.nombre}` : '';
   };
 
-  // ⭐ NUEVA FUNCIÓN: Obtener el nombre completo del cargo
+  // Obtener el nombre completo del cargo
   const getCargoCompleto = () => {
     if (personal?.cargo_actual_detalle?.nombre) {
       return personal.cargo_actual_detalle.nombre;
@@ -352,7 +346,6 @@ const EditarLegajo = () => {
                   {personal?.area_actual_detalle?.nombre || personal?.area_nombre || '-'}
                 </Typography>
               </Box>
-              {/* ⭐ CARGO CORREGIDO - Ahora muestra el nombre completo */}
               <Box>
                 <Typography variant="caption" color="textSecondary">
                   Cargo
@@ -394,10 +387,6 @@ const EditarLegajo = () => {
         Documentos del Legajo
       </Typography>
 
-      <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: '#003366' }}>
-        Documentos por Sección
-      </Typography>
-
       {/* Botón Agregar Documento */}
       <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
         <Button
@@ -413,7 +402,6 @@ const EditarLegajo = () => {
       {/* Acordeones con las 9 secciones del legajo */}
       {secciones.map((seccion) => {
         const docs = documentosPorSeccion(seccion.id);
-        const tipos = tiposPorSeccion(seccion.id);
         
         const totalDocs = seccion.numero === 9 && personal?.documento ? docs.length + 1 : docs.length;
         
@@ -431,11 +419,6 @@ const EditarLegajo = () => {
                 <Typography variant="h6" sx={{ fontWeight: 'bold', flexGrow: 1 }}>
                   {seccion.numero}. {seccion.nombre} ({totalDocs})
                 </Typography>
-                <Chip 
-                  label={`${tipos.length} tipos`} 
-                  size="small" 
-                  sx={{ bgcolor: 'rgba(255,255,255,0.3)', color: 'white', fontWeight: 'bold' }}
-                />
               </Box>
             </AccordionSummary>
             
@@ -571,7 +554,7 @@ const EditarLegajo = () => {
         );
       })}
 
-      {/* DIALOG MEJORADO */}
+      {/* ⭐ DIALOG MEJORADO CON SEARCHABLE SELECT */}
       <Dialog open={openAddDialog} onClose={handleCloseAddDialog} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ bgcolor: '#003366', color: 'white' }}>
           Agregar Documento
@@ -607,42 +590,22 @@ const EditarLegajo = () => {
               </Select>
             </FormControl>
 
-            {/* Seleccionar Tipo */}
+            {/* ⭐ SEARCHABLE SELECT PARA TIPO DE DOCUMENTO */}
             {seccionSeleccionada && (
               <>
-                <FormControl fullWidth required>
-                  <InputLabel>Tipo de Documento *</InputLabel>
-                  <Select
-                    value={nuevoDocumento.tipo_documento}
-                    onChange={(e) => setNuevoDocumento({ ...nuevoDocumento, tipo_documento: e.target.value })}
-                    label="Tipo de Documento *"
-                    disabled={!seccionSeleccionada}
-                  >
-                    {tiposFiltrados.length === 0 ? (
-                      <MenuItem disabled>No hay tipos disponibles</MenuItem>
-                    ) : (
-                      tiposFiltrados.map((tipo) => (
-                        <MenuItem key={tipo.id} value={tipo.id}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                              {tipo.codigo}
-                            </Typography>
-                            <Typography variant="body2">
-                              {tipo.nombre}
-                            </Typography>
-                            {tipo.es_obligatorio && (
-                              <Chip label="OBLIGATORIO" size="small" color="error" />
-                            )}
-                          </Box>
-                        </MenuItem>
-                      ))
-                    )}
-                  </Select>
-                </FormControl>
+                <SearchableSelect
+                  label="Tipo de Documento *"
+                  value={nuevoDocumento.tipo_documento}
+                  options={tiposFiltrados}
+                  onChange={(tipoId) => setNuevoDocumento({ ...nuevoDocumento, tipo_documento: tipoId })}
+                  placeholder="Buscar tipo de documento..."
+                  required
+                  disabled={!seccionSeleccionada}
+                />
                 
-                {/* ⭐ Mostrar contador de tipos */}
-                <Typography variant="caption" color="textSecondary" sx={{ textAlign: 'center' }}>
-                  📝 {tiposFiltrados.length} tipos de documento disponibles en esta sección
+                {/* Mostrar contador de tipos */}
+                <Typography variant="caption" color="textSecondary" sx={{ textAlign: 'center', mt: -2 }}>
+                  📝 {tiposFiltrados.length} tipos de documento disponibles
                 </Typography>
               </>
             )}
