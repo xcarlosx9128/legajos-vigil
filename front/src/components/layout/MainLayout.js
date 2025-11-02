@@ -25,6 +25,7 @@ import {
   Assignment as AssignmentIcon,
   Description as DescriptionIcon,
   Settings as SettingsIcon,
+  AccountTree as AccountTreeIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -64,32 +65,32 @@ const MainLayout = ({ children }) => {
         return [
           ...baseItems,
           { text: 'Gestionar Usuarios', icon: <PeopleIcon />, path: '/admin/usuarios' },
-          { text: 'Áreas', icon: <BusinessIcon />, path: '/admin/areas' },
-          { text: 'Gestionar Personal', icon: <PersonIcon />, path: '/gestionar-personal' }, // ⭐ NUEVO
-          { text: 'Tickets', icon: <AssignmentIcon />, path: '/tickets' }, // ⭐ AGREGADO
+          { text: 'Configuración y Gestión Organizacional', icon: <AccountTreeIcon />, path: '/admin/configuracion-organizacional' }, // ⭐ NUEVO
+          { text: 'Gestionar Personal', icon: <PersonIcon />, path: '/gestionar-personal' },
+          { text: 'Tickets', icon: <AssignmentIcon />, path: '/tickets' },
         ];
       
       case 'SUBGERENTE':
         return [
           ...baseItems,
           { text: 'Consultar Personal', icon: <PersonIcon />, path: '/subgerente/consultar-personal' },
-          { text: 'Gestionar Personal', icon: <PeopleIcon />, path: '/gestionar-personal' }, // ⭐ NUEVO
-          { text: 'Tickets', icon: <AssignmentIcon />, path: '/tickets' }, // ⭐ AGREGADO
+          { text: 'Gestionar Personal', icon: <PeopleIcon />, path: '/gestionar-personal' },
+          { text: 'Tickets', icon: <AssignmentIcon />, path: '/tickets' },
         ];
       
       case 'ENCARGADO':
         return [
           ...baseItems,
-          { text: 'Gestionar Personal', icon: <PeopleIcon />, path: '/gestionar-personal' }, // ⭐ ACTUALIZADO
-          { text: 'Tickets', icon: <AssignmentIcon />, path: '/tickets' }, // ⭐ ACTUALIZADO
+          { text: 'Gestionar Personal', icon: <PeopleIcon />, path: '/gestionar-personal' },
+          { text: 'Tickets', icon: <AssignmentIcon />, path: '/tickets' },
           { text: 'Configuración', icon: <SettingsIcon />, path: '/encargado/configuracion' },
         ];
       
       case 'COORDINADOR':
         return [
           ...baseItems,
-          { text: 'Gestionar Personal', icon: <PeopleIcon />, path: '/gestionar-personal' }, // ⭐ ACTUALIZADO
-          { text: 'Tickets', icon: <AssignmentIcon />, path: '/tickets' }, // ⭐ ACTUALIZADO
+          { text: 'Gestionar Personal', icon: <PeopleIcon />, path: '/gestionar-personal' },
+          { text: 'Tickets', icon: <AssignmentIcon />, path: '/tickets' },
           { text: 'Configuración', icon: <SettingsIcon />, path: '/coordinador/configuracion' },
         ];
       

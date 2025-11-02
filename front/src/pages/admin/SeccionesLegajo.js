@@ -18,42 +18,40 @@ import {
   CircularProgress,
   InputAdornment,
   Typography,
-  Chip,
 } from '@mui/material';
 import {
   Edit,
   Search as SearchIcon,
   Archive as ArchiveIcon,
-  ToggleOff as ToggleOffIcon,
-  ToggleOn as ToggleOnIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import api from '../../services/api';
 
-const GestionAreas = () => {
-  const [areas, setAreas] = useState([]);
+const SeccionesLegajo = () => {
+  const [secciones, setSecciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [openSuccessDialog, setOpenSuccessDialog] = useState(false);
-  const [openStatusDialog, setOpenStatusDialog] = useState(false);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [areaToToggle, setAreaToToggle] = useState(null);
-  const [currentArea, setCurrentArea] = useState({
+  const [seccionToDelete, setSeccionToDelete] = useState(null);
+  const [currentSeccion, setCurrentSeccion] = useState({
     nombre: '',
-    codigo: '',
     descripcion: '',
+    orden: '',
   });
 
   useEffect(() => {
-    loadAreas();
+    loadSecciones();
   }, []);
 
-  const loadAreas = async () => {
+  const loadSecciones = async () => {
     try {
-      let allAreas = [];
-      let url = '/areas/?page_size=100';
+      let allSecciones = [];
+      let url = '/secciones-legajo/?page_size=100';
       
       // Cargar todas las páginas
       while (url) {
@@ -62,40 +60,40 @@ const GestionAreas = () => {
         
         // Si la respuesta tiene results (paginado)
         if (data.results) {
-          allAreas = [...allAreas, ...data.results];
+          allSecciones = [...allSecciones, ...data.results];
           // Obtener la URL de la siguiente página
           url = data.next ? data.next.replace(api.defaults.baseURL, '') : null;
         } else {
           // Si no hay paginación, usar la data directamente
-          allAreas = data;
+          allSecciones = data;
           url = null;
         }
       }
       
-      setAreas(allAreas);
+      setSecciones(allSecciones);
       setLoading(false);
     } catch (error) {
-      console.error('Error al cargar áreas:', error);
-      setError('Error al cargar áreas');
+      console.error('Error al cargar secciones:', error);
+      setError('Error al cargar secciones de legajo');
       setLoading(false);
     }
   };
 
-  const handleOpenDialog = (area = null) => {
-    if (area) {
+  const handleOpenDialog = (seccion = null) => {
+    if (seccion) {
       setEditMode(true);
-      setCurrentArea({
-        id: area.id,
-        nombre: area.nombre || '',
-        codigo: area.codigo || '',
-        descripcion: area.descripcion || '',
+      setCurrentSeccion({
+        id: seccion.id,
+        nombre: seccion.nombre || '',
+        descripcion: seccion.descripcion || '',
+        orden: seccion.orden || '',
       });
     } else {
       setEditMode(false);
-      setCurrentArea({
+      setCurrentSeccion({
         nombre: '',
-        codigo: '',
         descripcion: '',
+        orden: '',
       });
     }
     setOpenDialog(true);
@@ -104,10 +102,10 @@ const GestionAreas = () => {
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
-    setCurrentArea({
+    setCurrentSeccion({
       nombre: '',
-      codigo: '',
       descripcion: '',
+      orden: '',
     });
   };
 
@@ -115,68 +113,62 @@ const GestionAreas = () => {
     setError('');
     setSuccess('');
 
-    if (!currentArea.nombre.trim() || !currentArea.codigo.trim()) {
-      setError('El nombre y código son obligatorios');
+    if (!currentSeccion.nombre.trim()) {
+      setError('El nombre es obligatorio');
       return;
     }
 
     try {
       const dataToSend = {
-        nombre: currentArea.nombre,
-        codigo: currentArea.codigo,
-        descripcion: currentArea.descripcion || null,
+        nombre: currentSeccion.nombre,
+        descripcion: currentSeccion.descripcion || null,
+        orden: currentSeccion.orden ? parseInt(currentSeccion.orden) : null,
       };
 
       if (editMode) {
-        await api.patch(`/areas/${currentArea.id}/`, dataToSend);
+        await api.patch(`/secciones-legajo/${currentSeccion.id}/`, dataToSend);
       } else {
-        await api.post('/areas/', dataToSend);
+        await api.post('/secciones-legajo/', dataToSend);
       }
       handleCloseDialog();
       setOpenSuccessDialog(true);
     } catch (error) {
       console.error('Error al guardar:', error);
-      const errorMsg = error.response?.data?.nombre?.[0] 
-        || error.response?.data?.codigo?.[0]
-        || error.response?.data?.detail 
-        || 'Error al guardar área';
-      setError(errorMsg);
+      setError('Error al guardar la sección de legajo');
     }
   };
 
   const handleSuccessDialogClose = () => {
     setOpenSuccessDialog(false);
-    loadAreas();
+    loadSecciones();
   };
 
-  const handleOpenStatusDialog = (area) => {
-    setAreaToToggle(area);
-    setOpenStatusDialog(true);
+  const handleOpenDeleteDialog = (seccion) => {
+    setSeccionToDelete(seccion);
+    setOpenDeleteDialog(true);
   };
 
-  const handleCloseStatusDialog = () => {
-    setOpenStatusDialog(false);
-    setAreaToToggle(null);
+  const handleCloseDeleteDialog = () => {
+    setOpenDeleteDialog(false);
+    setSeccionToDelete(null);
   };
 
-  const handleToggleStatus = async () => {
+  const handleDelete = async () => {
     try {
-      const newStatus = !areaToToggle.activo;
-      await api.patch(`/areas/${areaToToggle.id}/`, { activo: newStatus });
-      setSuccess(`Área ${newStatus ? 'activada' : 'desactivada'} exitosamente`);
-      handleCloseStatusDialog();
-      loadAreas();
+      await api.delete(`/secciones-legajo/${seccionToDelete.id}/`);
+      setSuccess('Sección de legajo eliminada exitosamente');
+      handleCloseDeleteDialog();
+      loadSecciones();
       setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
-      console.error('Error al cambiar estado:', error);
-      setError('Error al cambiar el estado del área');
-      handleCloseStatusDialog();
+      console.error('Error al eliminar:', error);
+      setError('Error al eliminar la sección de legajo');
+      handleCloseDeleteDialog();
     }
   };
 
-  const filteredAreas = areas.filter((area) =>
-    area.nombre?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    area.codigo?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredSecciones = secciones.filter((seccion) =>
+    seccion.nombre?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (loading) {
@@ -197,13 +189,13 @@ const GestionAreas = () => {
       <Paper elevation={0} sx={{ p: 3, mb: 3, bgcolor: 'white', borderRadius: 2 }}>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', flexDirection: 'column' }}>
           <Box sx={{ typography: 'body2', color: '#666', mb: 1 }}>
-            Buscar area
+            Buscar sección de legajo
           </Box>
           
           <Box sx={{ display: 'flex', gap: 2, width: '100%', alignItems: 'center' }}>
             <TextField
               size="small"
-              placeholder="Buscar por nombre o código"
+              placeholder="Buscar por nombre"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               sx={{
@@ -239,58 +231,50 @@ const GestionAreas = () => {
                 ml: 'auto',
               }}
             >
-              Añadir Nueva Area
+              Añadir Nueva Sección de Legajo
             </Button>
           </Box>
         </Box>
       </Paper>
 
-      {/* Tabla de áreas */}
+      {/* Tabla */}
       <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 2, overflow: 'hidden' }}>
         <Table>
           <TableHead>
             <TableRow sx={{ bgcolor: '#0d3c6e' }}>
               <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '5%' }}>N°</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '30%' }}>Nombre de Area</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '15%' }}>Siglas de Area</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '30%' }}>Descripción</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '10%' }} align="center">Estado</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '10%' }}>Acciones</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '30%' }}>Nombre</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '40%' }}>Descripción</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '10%' }}>Orden</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '15%' }}>Acciones</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredAreas.length === 0 ? (
+            {filteredSecciones.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
                   <Typography variant="body2" color="textSecondary">
-                    No se encontraron áreas
+                    No se encontraron secciones de legajo
                   </Typography>
                 </TableCell>
               </TableRow>
             ) : (
-              filteredAreas.map((area, index) => (
-                <TableRow key={area.id} sx={{ '&:hover': { bgcolor: '#f8f8f8' }, bgcolor: 'white' }}>
+              filteredSecciones.map((seccion, index) => (
+                <TableRow key={seccion.id} sx={{ '&:hover': { bgcolor: '#f8f8f8' }, bgcolor: 'white' }}>
                   <TableCell sx={{ py: 2.5, fontSize: '0.875rem' }}>{index + 1}</TableCell>
                   <TableCell sx={{ textTransform: 'uppercase', fontSize: '0.875rem', py: 2.5 }}>
-                    {area.nombre}
+                    {seccion.nombre}
                   </TableCell>
                   <TableCell sx={{ fontSize: '0.875rem', py: 2.5 }}>
-                    {area.codigo}
+                    {seccion.descripcion || '--'}
                   </TableCell>
                   <TableCell sx={{ fontSize: '0.875rem', py: 2.5 }}>
-                    {area.descripcion || '--'}
-                  </TableCell>
-                  <TableCell align="center" sx={{ py: 2.5 }}>
-                    <Chip
-                      label={area.activo ? 'Activo' : 'Inactivo'}
-                      color={area.activo ? 'success' : 'default'}
-                      size="small"
-                    />
+                    {seccion.orden || '--'}
                   </TableCell>
                   <TableCell sx={{ py: 2.5 }}>
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       <IconButton
-                        onClick={() => handleOpenDialog(area)}
+                        onClick={() => handleOpenDialog(seccion)}
                         sx={{
                           bgcolor: 'transparent',
                           border: '2px solid #003366',
@@ -303,24 +287,20 @@ const GestionAreas = () => {
                         <Edit sx={{ fontSize: 18, color: '#003366' }} />
                       </IconButton>
                       <IconButton
-                        onClick={() => handleOpenStatusDialog(area)}
+                        onClick={() => handleOpenDeleteDialog(seccion)}
                         sx={{
                           bgcolor: 'transparent',
-                          border: `2px solid ${area.activo ? '#ff9800' : '#4caf50'}`,
+                          border: '2px solid #d32f2f',
                           borderRadius: 1,
                           width: 36,
                           height: 36,
                           '&:hover': { 
-                            bgcolor: area.activo ? '#ff9800' : '#4caf50', 
+                            bgcolor: '#d32f2f', 
                             '& .MuiSvgIcon-root': { color: 'white' } 
                           },
                         }}
                       >
-                        {area.activo ? (
-                          <ToggleOffIcon sx={{ fontSize: 18, color: '#ff9800' }} />
-                        ) : (
-                          <ToggleOnIcon sx={{ fontSize: 18, color: '#4caf50' }} />
-                        )}
+                        <DeleteIcon sx={{ fontSize: 18, color: '#d32f2f' }} />
                       </IconButton>
                     </Box>
                   </TableCell>
@@ -331,7 +311,7 @@ const GestionAreas = () => {
         </Table>
       </TableContainer>
 
-      {/* Dialog Agregar/Editar Área */}
+      {/* Dialog Agregar/Editar */}
       <Dialog 
         open={openDialog} 
         onClose={handleCloseDialog} 
@@ -341,41 +321,21 @@ const GestionAreas = () => {
       >
         <DialogContent sx={{ p: 4 }}>
           <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold', mb: 3 }}>
-            {editMode ? 'Editar datos de Area' : 'Agregar Nueva Area'}
+            {editMode ? 'Editar datos de Sección de Legajo' : 'Agregar Nueva Sección de Legajo'}
           </Typography>
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-            {/* Nombre de Área */}
+            {/* Nombre */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '200px' }}>
-                Nombre de Area:
+                Nombre:
               </Typography>
               <TextField
                 fullWidth
                 size="small"
-                value={currentArea.nombre}
-                onChange={(e) => setCurrentArea({ ...currentArea, nombre: e.target.value })}
-                placeholder="Gerencia de Administracion y Finanza"
-                required
-                sx={{
-                  bgcolor: 'white',
-                  borderRadius: 1,
-                  '& .MuiOutlinedInput-root': { borderRadius: 1, '& fieldset': { border: 'none' } },
-                }}
-              />
-            </Box>
-
-            {/* Siglas de Área */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '200px' }}>
-                Siglas de Area:
-              </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                value={currentArea.codigo}
-                onChange={(e) => setCurrentArea({ ...currentArea, codigo: e.target.value.toUpperCase() })}
-                placeholder="GAF"
+                value={currentSeccion.nombre}
+                onChange={(e) => setCurrentSeccion({ ...currentSeccion, nombre: e.target.value })}
+                placeholder="Datos Personales"
                 required
                 sx={{
                   bgcolor: 'white',
@@ -394,9 +354,29 @@ const GestionAreas = () => {
                 fullWidth
                 multiline
                 rows={3}
-                value={currentArea.descripcion}
-                onChange={(e) => setCurrentArea({ ...currentArea, descripcion: e.target.value })}
-                placeholder="Oficina encargada del presupuesto"
+                value={currentSeccion.descripcion}
+                onChange={(e) => setCurrentSeccion({ ...currentSeccion, descripcion: e.target.value })}
+                placeholder="Descripción de la sección"
+                sx={{
+                  bgcolor: 'white',
+                  borderRadius: 1,
+                  '& .MuiOutlinedInput-root': { borderRadius: 1, '& fieldset': { border: 'none' } },
+                }}
+              />
+            </Box>
+
+            {/* Orden */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '200px' }}>
+                Orden (Opcional):
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                type="number"
+                value={currentSeccion.orden}
+                onChange={(e) => setCurrentSeccion({ ...currentSeccion, orden: e.target.value })}
+                placeholder="1"
                 sx={{
                   bgcolor: 'white',
                   borderRadius: 1,
@@ -426,7 +406,7 @@ const GestionAreas = () => {
             </Button>
             <Button
               onClick={handleSave}
-              disabled={!currentArea.nombre.trim() || !currentArea.codigo.trim()}
+              disabled={!currentSeccion.nombre.trim()}
               sx={{
                 bgcolor: '#ff0000',
                 color: 'white',
@@ -446,7 +426,7 @@ const GestionAreas = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Éxito (Crear/Editar) */}
+      {/* Dialog de Éxito */}
       <Dialog 
         open={openSuccessDialog} 
         onClose={handleSuccessDialogClose}
@@ -462,7 +442,7 @@ const GestionAreas = () => {
           </Box>
 
           <Typography variant="h5" sx={{ color: 'white', fontWeight: 500, mb: 4 }}>
-            {editMode ? '¡Se ha modificado una area con Éxito!' : '¡Se ha creado un nuevo área con Éxito!'}
+            {editMode ? '¡Se ha modificado la sección de legajo con Éxito!' : '¡Se ha creado una nueva sección de legajo con Éxito!'}
           </Typography>
 
           <Button
@@ -484,10 +464,10 @@ const GestionAreas = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Confirmación Activar/Desactivar */}
+      {/* Dialog Eliminar */}
       <Dialog 
-        open={openStatusDialog} 
-        onClose={handleCloseStatusDialog}
+        open={openDeleteDialog} 
+        onClose={handleCloseDeleteDialog}
         maxWidth="sm"
         fullWidth
         PaperProps={{ sx: { bgcolor: '#003d6e', borderRadius: 2 } }}
@@ -500,13 +480,13 @@ const GestionAreas = () => {
           </Box>
 
           <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold', mb: 4, lineHeight: 1.4 }}>
-            ¿Estás seguro de {areaToToggle?.activo ? 'desactivar' : 'activar'} el área de<br />
-            {areaToToggle?.nombre}?
+            ¿Estás seguro de eliminar la sección de legajo<br />
+            {seccionToDelete?.nombre}?
           </Typography>
 
           <Box sx={{ display: 'flex', gap: 3, justifyContent: 'center' }}>
             <Button
-              onClick={handleCloseStatusDialog}
+              onClick={handleCloseDeleteDialog}
               sx={{
                 bgcolor: '#4DD0E1',
                 color: 'black',
@@ -522,7 +502,7 @@ const GestionAreas = () => {
               Cancelar
             </Button>
             <Button
-              onClick={handleToggleStatus}
+              onClick={handleDelete}
               sx={{
                 bgcolor: '#ff0000',
                 color: 'white',
@@ -544,4 +524,4 @@ const GestionAreas = () => {
   );
 };
 
-export default GestionAreas;
+export default SeccionesLegajo;

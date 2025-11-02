@@ -11,10 +11,16 @@ import Eventos from './pages/Eventos';
 import Tickets from './pages/Tickets';
 import GestionUsuarios from './pages/admin/GestionUsuarios';
 import GestionAreas from './pages/admin/GestionAreas';
+import ConfiguracionOrganizacional from './pages/admin/ConfiguracionOrganizacional'; // ⭐ NUEVO
+import CondicionLaboral from './pages/admin/CondicionLaboral'; // ⭐ NUEVO
+import Regimenes from './pages/admin/Regimenes'; // ⭐ NUEVO
+import SeccionesLegajo from './pages/admin/SeccionesLegajo'; // ⭐ NUEVO
+import TipoDocumentos from './pages/admin/TipoDocumentos'; // ⭐ NUEVO
+import CargosPersonal from './pages/admin/CargosPersonal'; // ⭐ NUEVO
 import ConsultarPersonal from './pages/subgerente/ConsultarPersonal';
 import GestionarPersonal from './pages/GestionarPersonal';
-import EditarLegajo from './pages/EditarLegajo'; // ⭐ NUEVO
-import EditarHistorialEscalafon from './pages/EditarHistorialEscalafon'; // ⭐ NUEVO
+import EditarLegajo from './pages/EditarLegajo';
+import EditarHistorialEscalafon from './pages/EditarHistorialEscalafon';
 
 const theme = createTheme({
   palette: {
@@ -128,6 +134,78 @@ function App() {
                 <ProtectedRoute allowedRoles={['ADMIN']}>
                   <MainLayout>
                     <GestionAreas />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ⭐ NUEVO: Configuración y Gestión Organizacional */}
+            <Route
+              path="/admin/configuracion-organizacional"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <MainLayout>
+                    <ConfiguracionOrganizacional />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ⭐ NUEVO: Condición Laboral */}
+            <Route
+              path="/admin/condicion-laboral"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <MainLayout>
+                    <CondicionLaboral />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ⭐ NUEVO: Regímenes */}
+            <Route
+              path="/admin/regimenes"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <MainLayout>
+                    <Regimenes />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ⭐ NUEVO: Secciones de Legajo */}
+            <Route
+              path="/admin/secciones-legajo"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <MainLayout>
+                    <SeccionesLegajo />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ⭐ NUEVO: Tipo de Documentos */}
+            <Route
+              path="/admin/tipo-documentos"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <MainLayout>
+                    <TipoDocumentos />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ⭐ NUEVO: Cargos de Personal */}
+            <Route
+              path="/admin/cargos-personal"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <MainLayout>
+                    <CargosPersonal />
                   </MainLayout>
                 </ProtectedRoute>
               }

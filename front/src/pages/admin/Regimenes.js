@@ -29,8 +29,8 @@ import {
 } from '@mui/icons-material';
 import api from '../../services/api';
 
-const GestionAreas = () => {
-  const [areas, setAreas] = useState([]);
+const Regimenes = () => {
+  const [regimenes, setRegimenes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [openSuccessDialog, setOpenSuccessDialog] = useState(false);
@@ -39,21 +39,20 @@ const GestionAreas = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [areaToToggle, setAreaToToggle] = useState(null);
-  const [currentArea, setCurrentArea] = useState({
+  const [regimenToToggle, setRegimenToToggle] = useState(null);
+  const [currentRegimen, setCurrentRegimen] = useState({
     nombre: '',
-    codigo: '',
     descripcion: '',
   });
 
   useEffect(() => {
-    loadAreas();
+    loadRegimenes();
   }, []);
 
-  const loadAreas = async () => {
+  const loadRegimenes = async () => {
     try {
-      let allAreas = [];
-      let url = '/areas/?page_size=100';
+      let allRegimenes = [];
+      let url = '/regimenes/?page_size=100';
       
       // Cargar todas las páginas
       while (url) {
@@ -62,39 +61,37 @@ const GestionAreas = () => {
         
         // Si la respuesta tiene results (paginado)
         if (data.results) {
-          allAreas = [...allAreas, ...data.results];
+          allRegimenes = [...allRegimenes, ...data.results];
           // Obtener la URL de la siguiente página
           url = data.next ? data.next.replace(api.defaults.baseURL, '') : null;
         } else {
           // Si no hay paginación, usar la data directamente
-          allAreas = data;
+          allRegimenes = data;
           url = null;
         }
       }
       
-      setAreas(allAreas);
+      setRegimenes(allRegimenes);
       setLoading(false);
     } catch (error) {
-      console.error('Error al cargar áreas:', error);
-      setError('Error al cargar áreas');
+      console.error('Error al cargar regímenes:', error);
+      setError('Error al cargar regímenes');
       setLoading(false);
     }
   };
 
-  const handleOpenDialog = (area = null) => {
-    if (area) {
+  const handleOpenDialog = (regimen = null) => {
+    if (regimen) {
       setEditMode(true);
-      setCurrentArea({
-        id: area.id,
-        nombre: area.nombre || '',
-        codigo: area.codigo || '',
-        descripcion: area.descripcion || '',
+      setCurrentRegimen({
+        id: regimen.id,
+        nombre: regimen.nombre || '',
+        descripcion: regimen.descripcion || '',
       });
     } else {
       setEditMode(false);
-      setCurrentArea({
+      setCurrentRegimen({
         nombre: '',
-        codigo: '',
         descripcion: '',
       });
     }
@@ -104,9 +101,8 @@ const GestionAreas = () => {
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
-    setCurrentArea({
+    setCurrentRegimen({
       nombre: '',
-      codigo: '',
       descripcion: '',
     });
   };
@@ -115,68 +111,62 @@ const GestionAreas = () => {
     setError('');
     setSuccess('');
 
-    if (!currentArea.nombre.trim() || !currentArea.codigo.trim()) {
-      setError('El nombre y código son obligatorios');
+    if (!currentRegimen.nombre.trim()) {
+      setError('El nombre es obligatorio');
       return;
     }
 
     try {
       const dataToSend = {
-        nombre: currentArea.nombre,
-        codigo: currentArea.codigo,
-        descripcion: currentArea.descripcion || null,
+        nombre: currentRegimen.nombre,
+        descripcion: currentRegimen.descripcion || null,
       };
 
       if (editMode) {
-        await api.patch(`/areas/${currentArea.id}/`, dataToSend);
+        await api.patch(`/regimenes/${currentRegimen.id}/`, dataToSend);
       } else {
-        await api.post('/areas/', dataToSend);
+        await api.post('/regimenes/', dataToSend);
       }
       handleCloseDialog();
       setOpenSuccessDialog(true);
     } catch (error) {
       console.error('Error al guardar:', error);
-      const errorMsg = error.response?.data?.nombre?.[0] 
-        || error.response?.data?.codigo?.[0]
-        || error.response?.data?.detail 
-        || 'Error al guardar área';
-      setError(errorMsg);
+      setError('Error al guardar el régimen');
     }
   };
 
   const handleSuccessDialogClose = () => {
     setOpenSuccessDialog(false);
-    loadAreas();
+    loadRegimenes();
   };
 
-  const handleOpenStatusDialog = (area) => {
-    setAreaToToggle(area);
+  const handleOpenStatusDialog = (regimen) => {
+    setRegimenToToggle(regimen);
     setOpenStatusDialog(true);
   };
 
   const handleCloseStatusDialog = () => {
     setOpenStatusDialog(false);
-    setAreaToToggle(null);
+    setRegimenToToggle(null);
   };
 
   const handleToggleStatus = async () => {
     try {
-      const newStatus = !areaToToggle.activo;
-      await api.patch(`/areas/${areaToToggle.id}/`, { activo: newStatus });
-      setSuccess(`Área ${newStatus ? 'activada' : 'desactivada'} exitosamente`);
+      const newStatus = !regimenToToggle.activo;
+      await api.patch(`/regimenes/${regimenToToggle.id}/`, { activo: newStatus });
+      setSuccess(`Régimen ${newStatus ? 'activado' : 'desactivado'} exitosamente`);
       handleCloseStatusDialog();
-      loadAreas();
+      loadRegimenes();
       setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error al cambiar estado:', error);
-      setError('Error al cambiar el estado del área');
+      setError('Error al cambiar el estado');
       handleCloseStatusDialog();
     }
   };
 
-  const filteredAreas = areas.filter((area) =>
-    area.nombre?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    area.codigo?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredRegimenes = regimenes.filter((regimen) =>
+    regimen.nombre?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (loading) {
@@ -197,13 +187,13 @@ const GestionAreas = () => {
       <Paper elevation={0} sx={{ p: 3, mb: 3, bgcolor: 'white', borderRadius: 2 }}>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', flexDirection: 'column' }}>
           <Box sx={{ typography: 'body2', color: '#666', mb: 1 }}>
-            Buscar area
+            Buscar régimen
           </Box>
           
           <Box sx={{ display: 'flex', gap: 2, width: '100%', alignItems: 'center' }}>
             <TextField
               size="small"
-              placeholder="Buscar por nombre o código"
+              placeholder="Buscar por nombre"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               sx={{
@@ -239,58 +229,54 @@ const GestionAreas = () => {
                 ml: 'auto',
               }}
             >
-              Añadir Nueva Area
+              Añadir Nuevo Régimen
             </Button>
           </Box>
         </Box>
       </Paper>
 
-      {/* Tabla de áreas */}
+      {/* Tabla */}
       <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 2, overflow: 'hidden' }}>
         <Table>
           <TableHead>
             <TableRow sx={{ bgcolor: '#0d3c6e' }}>
               <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '5%' }}>N°</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '30%' }}>Nombre de Area</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '15%' }}>Siglas de Area</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '30%' }}>Descripción</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '35%' }}>Nombre</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '40%' }}>Descripción</TableCell>
               <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '10%' }} align="center">Estado</TableCell>
               <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '10%' }}>Acciones</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredAreas.length === 0 ? (
+            {filteredRegimenes.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
                   <Typography variant="body2" color="textSecondary">
-                    No se encontraron áreas
+                    No se encontraron regímenes
                   </Typography>
                 </TableCell>
               </TableRow>
             ) : (
-              filteredAreas.map((area, index) => (
-                <TableRow key={area.id} sx={{ '&:hover': { bgcolor: '#f8f8f8' }, bgcolor: 'white' }}>
+              filteredRegimenes.map((regimen, index) => (
+                <TableRow key={regimen.id} sx={{ '&:hover': { bgcolor: '#f8f8f8' }, bgcolor: 'white' }}>
                   <TableCell sx={{ py: 2.5, fontSize: '0.875rem' }}>{index + 1}</TableCell>
                   <TableCell sx={{ textTransform: 'uppercase', fontSize: '0.875rem', py: 2.5 }}>
-                    {area.nombre}
+                    {regimen.nombre}
                   </TableCell>
                   <TableCell sx={{ fontSize: '0.875rem', py: 2.5 }}>
-                    {area.codigo}
-                  </TableCell>
-                  <TableCell sx={{ fontSize: '0.875rem', py: 2.5 }}>
-                    {area.descripcion || '--'}
+                    {regimen.descripcion || '--'}
                   </TableCell>
                   <TableCell align="center" sx={{ py: 2.5 }}>
                     <Chip
-                      label={area.activo ? 'Activo' : 'Inactivo'}
-                      color={area.activo ? 'success' : 'default'}
+                      label={regimen.activo ? 'Activo' : 'Inactivo'}
+                      color={regimen.activo ? 'success' : 'default'}
                       size="small"
                     />
                   </TableCell>
                   <TableCell sx={{ py: 2.5 }}>
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       <IconButton
-                        onClick={() => handleOpenDialog(area)}
+                        onClick={() => handleOpenDialog(regimen)}
                         sx={{
                           bgcolor: 'transparent',
                           border: '2px solid #003366',
@@ -303,20 +289,20 @@ const GestionAreas = () => {
                         <Edit sx={{ fontSize: 18, color: '#003366' }} />
                       </IconButton>
                       <IconButton
-                        onClick={() => handleOpenStatusDialog(area)}
+                        onClick={() => handleOpenStatusDialog(regimen)}
                         sx={{
                           bgcolor: 'transparent',
-                          border: `2px solid ${area.activo ? '#ff9800' : '#4caf50'}`,
+                          border: `2px solid ${regimen.activo ? '#ff9800' : '#4caf50'}`,
                           borderRadius: 1,
                           width: 36,
                           height: 36,
                           '&:hover': { 
-                            bgcolor: area.activo ? '#ff9800' : '#4caf50', 
+                            bgcolor: regimen.activo ? '#ff9800' : '#4caf50', 
                             '& .MuiSvgIcon-root': { color: 'white' } 
                           },
                         }}
                       >
-                        {area.activo ? (
+                        {regimen.activo ? (
                           <ToggleOffIcon sx={{ fontSize: 18, color: '#ff9800' }} />
                         ) : (
                           <ToggleOnIcon sx={{ fontSize: 18, color: '#4caf50' }} />
@@ -331,7 +317,7 @@ const GestionAreas = () => {
         </Table>
       </TableContainer>
 
-      {/* Dialog Agregar/Editar Área */}
+      {/* Dialog Agregar/Editar */}
       <Dialog 
         open={openDialog} 
         onClose={handleCloseDialog} 
@@ -341,41 +327,21 @@ const GestionAreas = () => {
       >
         <DialogContent sx={{ p: 4 }}>
           <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold', mb: 3 }}>
-            {editMode ? 'Editar datos de Area' : 'Agregar Nueva Area'}
+            {editMode ? 'Editar datos de Régimen' : 'Agregar Nuevo Régimen'}
           </Typography>
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-            {/* Nombre de Área */}
+            {/* Nombre */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '200px' }}>
-                Nombre de Area:
+                Nombre:
               </Typography>
               <TextField
                 fullWidth
                 size="small"
-                value={currentArea.nombre}
-                onChange={(e) => setCurrentArea({ ...currentArea, nombre: e.target.value })}
-                placeholder="Gerencia de Administracion y Finanza"
-                required
-                sx={{
-                  bgcolor: 'white',
-                  borderRadius: 1,
-                  '& .MuiOutlinedInput-root': { borderRadius: 1, '& fieldset': { border: 'none' } },
-                }}
-              />
-            </Box>
-
-            {/* Siglas de Área */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '200px' }}>
-                Siglas de Area:
-              </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                value={currentArea.codigo}
-                onChange={(e) => setCurrentArea({ ...currentArea, codigo: e.target.value.toUpperCase() })}
-                placeholder="GAF"
+                value={currentRegimen.nombre}
+                onChange={(e) => setCurrentRegimen({ ...currentRegimen, nombre: e.target.value })}
+                placeholder="276"
                 required
                 sx={{
                   bgcolor: 'white',
@@ -394,9 +360,9 @@ const GestionAreas = () => {
                 fullWidth
                 multiline
                 rows={3}
-                value={currentArea.descripcion}
-                onChange={(e) => setCurrentArea({ ...currentArea, descripcion: e.target.value })}
-                placeholder="Oficina encargada del presupuesto"
+                value={currentRegimen.descripcion}
+                onChange={(e) => setCurrentRegimen({ ...currentRegimen, descripcion: e.target.value })}
+                placeholder="Descripción del régimen"
                 sx={{
                   bgcolor: 'white',
                   borderRadius: 1,
@@ -426,7 +392,7 @@ const GestionAreas = () => {
             </Button>
             <Button
               onClick={handleSave}
-              disabled={!currentArea.nombre.trim() || !currentArea.codigo.trim()}
+              disabled={!currentRegimen.nombre.trim()}
               sx={{
                 bgcolor: '#ff0000',
                 color: 'white',
@@ -446,7 +412,7 @@ const GestionAreas = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Éxito (Crear/Editar) */}
+      {/* Dialog de Éxito */}
       <Dialog 
         open={openSuccessDialog} 
         onClose={handleSuccessDialogClose}
@@ -462,7 +428,7 @@ const GestionAreas = () => {
           </Box>
 
           <Typography variant="h5" sx={{ color: 'white', fontWeight: 500, mb: 4 }}>
-            {editMode ? '¡Se ha modificado una area con Éxito!' : '¡Se ha creado un nuevo área con Éxito!'}
+            {editMode ? '¡Se ha modificado el régimen con Éxito!' : '¡Se ha creado un nuevo régimen con Éxito!'}
           </Typography>
 
           <Button
@@ -484,7 +450,7 @@ const GestionAreas = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Confirmación Activar/Desactivar */}
+      {/* Dialog Activar/Desactivar */}
       <Dialog 
         open={openStatusDialog} 
         onClose={handleCloseStatusDialog}
@@ -500,8 +466,8 @@ const GestionAreas = () => {
           </Box>
 
           <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold', mb: 4, lineHeight: 1.4 }}>
-            ¿Estás seguro de {areaToToggle?.activo ? 'desactivar' : 'activar'} el área de<br />
-            {areaToToggle?.nombre}?
+            ¿Estás seguro de {regimenToToggle?.activo ? 'desactivar' : 'activar'} el régimen<br />
+            {regimenToToggle?.nombre}?
           </Typography>
 
           <Box sx={{ display: 'flex', gap: 3, justifyContent: 'center' }}>
@@ -544,4 +510,4 @@ const GestionAreas = () => {
   );
 };
 
-export default GestionAreas;
+export default Regimenes;
