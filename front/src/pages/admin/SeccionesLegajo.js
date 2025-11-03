@@ -18,12 +18,14 @@ import {
   CircularProgress,
   InputAdornment,
   Typography,
+  Chip,
 } from '@mui/material';
 import {
   Edit,
   Search as SearchIcon,
   Archive as ArchiveIcon,
-  Delete as DeleteIcon,
+  ToggleOff as ToggleOffIcon,
+  ToggleOn as ToggleOnIcon,
 } from '@mui/icons-material';
 import api from '../../services/api';
 
@@ -32,15 +34,18 @@ const SeccionesLegajo = () => {
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [openSuccessDialog, setOpenSuccessDialog] = useState(false);
-  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [openStatusDialog, setOpenStatusDialog] = useState(false);
+  const [openStatusSuccessDialog, setOpenStatusSuccessDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [seccionToDelete, setSeccionToDelete] = useState(null);
+  const [seccionToToggle, setSeccionToToggle] = useState(null);
+  const [statusChangeMessage, setStatusChangeMessage] = useState('');
   const [currentSeccion, setCurrentSeccion] = useState({
     nombre: '',
     descripcion: '',
+    color: '#1976d2',
     orden: '',
   });
 
@@ -53,18 +58,14 @@ const SeccionesLegajo = () => {
       let allSecciones = [];
       let url = '/secciones-legajo/?page_size=100';
       
-      // Cargar todas las páginas
       while (url) {
         const response = await api.get(url);
         const data = response.data;
         
-        // Si la respuesta tiene results (paginado)
         if (data.results) {
           allSecciones = [...allSecciones, ...data.results];
-          // Obtener la URL de la siguiente página
           url = data.next ? data.next.replace(api.defaults.baseURL, '') : null;
         } else {
-          // Si no hay paginación, usar la data directamente
           allSecciones = data;
           url = null;
         }
@@ -86,14 +87,30 @@ const SeccionesLegajo = () => {
         id: seccion.id,
         nombre: seccion.nombre || '',
         descripcion: seccion.descripcion || '',
-        orden: seccion.orden || '',
+        color: seccion.color || '#1976d2',
+        orden: seccion.orden !== null && seccion.orden !== undefined ? seccion.orden.toString() : '',
       });
     } else {
       setEditMode(false);
+      
+      // Calcular el siguiente orden disponible automáticamente
+      let siguienteOrden = 1;
+      if (secciones.length > 0) {
+        const ordenes = secciones
+          .map(s => s.orden || 0)
+          .filter(o => !isNaN(o));
+        
+        if (ordenes.length > 0) {
+          const maxOrden = Math.max(...ordenes);
+          siguienteOrden = maxOrden + 1;
+        }
+      }
+      
       setCurrentSeccion({
         nombre: '',
         descripcion: '',
-        orden: '',
+        color: '#1976d2',
+        orden: siguienteOrden.toString(),
       });
     }
     setOpenDialog(true);
@@ -105,6 +122,7 @@ const SeccionesLegajo = () => {
     setCurrentSeccion({
       nombre: '',
       descripcion: '',
+      color: '#1976d2',
       orden: '',
     });
   };
@@ -113,17 +131,38 @@ const SeccionesLegajo = () => {
     setError('');
     setSuccess('');
 
+    // Validaciones
     if (!currentSeccion.nombre.trim()) {
       setError('El nombre es obligatorio');
       return;
     }
 
+    if (!currentSeccion.orden || currentSeccion.orden.trim() === '') {
+      setError('El orden es obligatorio');
+      return;
+    }
+
+    const ordenInt = parseInt(currentSeccion.orden);
+    if (isNaN(ordenInt)) {
+      setError('El orden debe ser un número válido');
+      return;
+    }
+
     try {
       const dataToSend = {
-        nombre: currentSeccion.nombre,
-        descripcion: currentSeccion.descripcion || null,
-        orden: currentSeccion.orden ? parseInt(currentSeccion.orden) : null,
+        nombre: currentSeccion.nombre.trim(),
+        orden: ordenInt,
       };
+
+      // Agregar descripción si tiene contenido
+      if (currentSeccion.descripcion && currentSeccion.descripcion.trim()) {
+        dataToSend.descripcion = currentSeccion.descripcion.trim();
+      }
+
+      // Agregar color
+      dataToSend.color = currentSeccion.color || '#1976d2';
+
+      console.log('Datos a enviar:', dataToSend);
 
       if (editMode) {
         await api.patch(`/secciones-legajo/${currentSeccion.id}/`, dataToSend);
@@ -134,7 +173,25 @@ const SeccionesLegajo = () => {
       setOpenSuccessDialog(true);
     } catch (error) {
       console.error('Error al guardar:', error);
-      setError('Error al guardar la sección de legajo');
+      console.error('Respuesta del servidor:', error.response?.data);
+      
+      // Manejar errores específicos
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        if (errorData.nombre) {
+          setError(`Error en Nombre: ${errorData.nombre[0]}`);
+        } else if (errorData.orden) {
+          setError(`Error en Orden: ${errorData.orden[0]}`);
+        } else {
+          const errorMsg = errorData.detail || 
+                           errorData.message || 
+                           JSON.stringify(errorData) ||
+                           'Error al guardar la sección de legajo';
+          setError(errorMsg);
+        }
+      } else {
+        setError('Error al guardar la sección de legajo');
+      }
     }
   };
 
@@ -143,27 +200,29 @@ const SeccionesLegajo = () => {
     loadSecciones();
   };
 
-  const handleOpenDeleteDialog = (seccion) => {
-    setSeccionToDelete(seccion);
-    setOpenDeleteDialog(true);
+  const handleOpenStatusDialog = (seccion) => {
+    setSeccionToToggle(seccion);
+    setOpenStatusDialog(true);
   };
 
-  const handleCloseDeleteDialog = () => {
-    setOpenDeleteDialog(false);
-    setSeccionToDelete(null);
+  const handleCloseStatusDialog = () => {
+    setOpenStatusDialog(false);
+    setSeccionToToggle(null);
   };
 
-  const handleDelete = async () => {
+  const handleToggleStatus = async () => {
     try {
-      await api.delete(`/secciones-legajo/${seccionToDelete.id}/`);
-      setSuccess('Sección de legajo eliminada exitosamente');
-      handleCloseDeleteDialog();
+      const newStatus = !seccionToToggle.activo;
+      const nombreSeccion = seccionToToggle.nombre;
+      await api.patch(`/secciones-legajo/${seccionToToggle.id}/`, { activo: newStatus });
+      setStatusChangeMessage(`Se ha ${newStatus ? 'activado' : 'desactivado'} la sección de legajo ${nombreSeccion} con éxito`);
+      handleCloseStatusDialog();
+      setOpenStatusSuccessDialog(true);
       loadSecciones();
-      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
-      console.error('Error al eliminar:', error);
-      setError('Error al eliminar la sección de legajo');
-      handleCloseDeleteDialog();
+      console.error('Error al cambiar estado:', error);
+      setError('Error al cambiar el estado');
+      handleCloseStatusDialog();
     }
   };
 
@@ -244,15 +303,17 @@ const SeccionesLegajo = () => {
             <TableRow sx={{ bgcolor: '#0d3c6e' }}>
               <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '5%' }}>N°</TableCell>
               <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '30%' }}>Nombre</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '40%' }}>Descripción</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '10%' }}>Orden</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '15%' }}>Acciones</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '35%' }}>Descripción</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '7%' }}>Color</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '8%' }}>Orden</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '8%' }} align="center">Estado</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '7%' }}>Acciones</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredSecciones.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                   <Typography variant="body2" color="textSecondary">
                     No se encontraron secciones de legajo
                   </Typography>
@@ -268,8 +329,31 @@ const SeccionesLegajo = () => {
                   <TableCell sx={{ fontSize: '0.875rem', py: 2.5 }}>
                     {seccion.descripcion || '--'}
                   </TableCell>
+                  <TableCell sx={{ py: 2.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box
+                        sx={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: 1,
+                          bgcolor: seccion.color || '#1976d2',
+                          border: '1px solid #ddd',
+                        }}
+                      />
+                      <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
+                        {seccion.color || '#1976d2'}
+                      </Typography>
+                    </Box>
+                  </TableCell>
                   <TableCell sx={{ fontSize: '0.875rem', py: 2.5 }}>
-                    {seccion.orden || '--'}
+                    {seccion.orden !== null && seccion.orden !== undefined ? seccion.orden : '--'}
+                  </TableCell>
+                  <TableCell align="center" sx={{ py: 2.5 }}>
+                    <Chip
+                      label={seccion.activo ? 'Activo' : 'Inactivo'}
+                      color={seccion.activo ? 'success' : 'default'}
+                      size="small"
+                    />
                   </TableCell>
                   <TableCell sx={{ py: 2.5 }}>
                     <Box sx={{ display: 'flex', gap: 1 }}>
@@ -287,20 +371,24 @@ const SeccionesLegajo = () => {
                         <Edit sx={{ fontSize: 18, color: '#003366' }} />
                       </IconButton>
                       <IconButton
-                        onClick={() => handleOpenDeleteDialog(seccion)}
+                        onClick={() => handleOpenStatusDialog(seccion)}
                         sx={{
                           bgcolor: 'transparent',
-                          border: '2px solid #d32f2f',
+                          border: `2px solid ${seccion.activo ? '#4caf50' : '#f44336'}`,
                           borderRadius: 1,
                           width: 36,
                           height: 36,
                           '&:hover': { 
-                            bgcolor: '#d32f2f', 
+                            bgcolor: seccion.activo ? '#4caf50' : '#f44336', 
                             '& .MuiSvgIcon-root': { color: 'white' } 
                           },
                         }}
                       >
-                        <DeleteIcon sx={{ fontSize: 18, color: '#d32f2f' }} />
+                        {seccion.activo ? (
+                          <ToggleOnIcon sx={{ fontSize: 18, color: '#4caf50' }} />
+                        ) : (
+                          <ToggleOffIcon sx={{ fontSize: 18, color: '#f44336' }} />
+                        )}
                       </IconButton>
                     </Box>
                   </TableCell>
@@ -328,7 +416,7 @@ const SeccionesLegajo = () => {
             {/* Nombre */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '200px' }}>
-                Nombre:
+                Nombre:*
               </Typography>
               <TextField
                 fullWidth
@@ -348,7 +436,7 @@ const SeccionesLegajo = () => {
             {/* Descripción */}
             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
               <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '200px', mt: 1 }}>
-                Descripcion (Opcional):
+                Descripción (Opcional):
               </Typography>
               <TextField
                 fullWidth
@@ -365,10 +453,51 @@ const SeccionesLegajo = () => {
               />
             </Box>
 
+            {/* Color */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '200px' }}>
+                Color:
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flex: 1 }}>
+                <TextField
+                  type="color"
+                  value={currentSeccion.color}
+                  onChange={(e) => setCurrentSeccion({ ...currentSeccion, color: e.target.value })}
+                  sx={{
+                    width: 80,
+                    bgcolor: 'white',
+                    borderRadius: 1,
+                    '& .MuiOutlinedInput-root': { 
+                      borderRadius: 1, 
+                      '& fieldset': { border: 'none' },
+                      height: 40,
+                    },
+                    '& input[type="color"]': {
+                      cursor: 'pointer',
+                      height: 36,
+                      padding: '2px',
+                    }
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={currentSeccion.color}
+                  onChange={(e) => setCurrentSeccion({ ...currentSeccion, color: e.target.value })}
+                  placeholder="#1976d2"
+                  sx={{
+                    bgcolor: 'white',
+                    borderRadius: 1,
+                    '& .MuiOutlinedInput-root': { borderRadius: 1, '& fieldset': { border: 'none' } },
+                  }}
+                />
+              </Box>
+            </Box>
+
             {/* Orden */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '200px' }}>
-                Orden (Opcional):
+                Orden:*
               </Typography>
               <TextField
                 fullWidth
@@ -376,7 +505,8 @@ const SeccionesLegajo = () => {
                 type="number"
                 value={currentSeccion.orden}
                 onChange={(e) => setCurrentSeccion({ ...currentSeccion, orden: e.target.value })}
-                placeholder="1"
+                placeholder="Se calculará automáticamente"
+                required
                 sx={{
                   bgcolor: 'white',
                   borderRadius: 1,
@@ -406,7 +536,7 @@ const SeccionesLegajo = () => {
             </Button>
             <Button
               onClick={handleSave}
-              disabled={!currentSeccion.nombre.trim()}
+              disabled={!currentSeccion.nombre.trim() || !currentSeccion.orden.trim()}
               sx={{
                 bgcolor: '#ff0000',
                 color: 'white',
@@ -464,10 +594,10 @@ const SeccionesLegajo = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog Eliminar */}
+      {/* Dialog Activar/Desactivar */}
       <Dialog 
-        open={openDeleteDialog} 
-        onClose={handleCloseDeleteDialog}
+        open={openStatusDialog} 
+        onClose={handleCloseStatusDialog}
         maxWidth="sm"
         fullWidth
         PaperProps={{ sx: { bgcolor: '#003d6e', borderRadius: 2 } }}
@@ -480,13 +610,13 @@ const SeccionesLegajo = () => {
           </Box>
 
           <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold', mb: 4, lineHeight: 1.4 }}>
-            ¿Estás seguro de eliminar la sección de legajo<br />
-            {seccionToDelete?.nombre}?
+            ¿Estás seguro de {seccionToToggle?.activo ? 'desactivar' : 'activar'} la sección de legajo<br />
+            {seccionToToggle?.nombre}?
           </Typography>
 
           <Box sx={{ display: 'flex', gap: 3, justifyContent: 'center' }}>
             <Button
-              onClick={handleCloseDeleteDialog}
+              onClick={handleCloseStatusDialog}
               sx={{
                 bgcolor: '#4DD0E1',
                 color: 'black',
@@ -502,7 +632,7 @@ const SeccionesLegajo = () => {
               Cancelar
             </Button>
             <Button
-              onClick={handleDelete}
+              onClick={handleToggleStatus}
               sx={{
                 bgcolor: '#ff0000',
                 color: 'white',
@@ -518,6 +648,44 @@ const SeccionesLegajo = () => {
               Confirmar
             </Button>
           </Box>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Éxito Activar/Desactivar */}
+      <Dialog 
+        open={openStatusSuccessDialog} 
+        onClose={() => setOpenStatusSuccessDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { bgcolor: '#003d6e', borderRadius: 2 } }}
+      >
+        <DialogContent sx={{ p: 6, textAlign: 'center' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+            <Box sx={{ width: 100, height: 100, borderRadius: 2, border: '5px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ArchiveIcon sx={{ fontSize: 60, color: 'white' }} />
+            </Box>
+          </Box>
+
+          <Typography variant="h5" sx={{ color: 'white', fontWeight: 500, mb: 4 }}>
+            {statusChangeMessage}
+          </Typography>
+
+          <Button
+            onClick={() => setOpenStatusSuccessDialog(false)}
+            sx={{
+              bgcolor: '#ff0000',
+              color: 'white',
+              fontWeight: 'bold',
+              py: 1.5,
+              px: 8,
+              textTransform: 'none',
+              borderRadius: 1,
+              fontSize: '1.1rem',
+              '&:hover': { bgcolor: '#cc0000' },
+            }}
+          >
+            Continuar
+          </Button>
         </DialogContent>
       </Dialog>
     </Container>

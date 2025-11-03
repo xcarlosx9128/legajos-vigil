@@ -44,7 +44,6 @@ class SeccionLegajoSerializer(serializers.ModelSerializer):
         model = SeccionLegajo
         fields = [
             'id',
-            'numero',
             'nombre',
             'nombre_completo',
             'descripcion',

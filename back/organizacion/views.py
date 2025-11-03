@@ -148,15 +148,15 @@ class CargoViewSet(viewsets.ModelViewSet):
 
 class SeccionLegajoViewSet(viewsets.ModelViewSet):
     """
-    ViewSet para gestionar las 9 secciones principales del legajo SIGELP.
+    ViewSet para gestionar las secciones del legajo SIGELP.
     """
     queryset = SeccionLegajo.objects.all()
     permission_classes = [IsAuthenticated]
     serializer_class = SeccionLegajoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['nombre', 'descripcion']
-    ordering_fields = ['numero', 'nombre', 'orden']
-    ordering = ['numero']
+    ordering_fields = ['orden', 'nombre']
+    ordering = ['orden']
     
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
@@ -174,7 +174,7 @@ class SeccionLegajoViewSet(viewsets.ModelViewSet):
         if search:
             queryset = queryset.filter(nombre__icontains=search)
         
-        return queryset.order_by('numero')
+        return queryset.order_by('orden')
     
     @action(detail=False, methods=['get'])
     def activas(self, request):
@@ -182,7 +182,7 @@ class SeccionLegajoViewSet(viewsets.ModelViewSet):
         Devuelve solo las secciones activas.
         GET /api/secciones-legajo/activas/
         """
-        secciones = SeccionLegajo.objects.filter(activo=True).order_by('numero')
+        secciones = SeccionLegajo.objects.filter(activo=True).order_by('orden')
         serializer = SeccionLegajoSerializer(secciones, many=True)
         return Response(serializer.data)
     

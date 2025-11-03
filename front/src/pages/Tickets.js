@@ -29,6 +29,7 @@ import {
   Search as SearchIcon,
   Add as AddIcon,
   CheckCircle as CheckCircleIcon,
+  ConfirmationNumber as ConfirmationNumberIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
@@ -56,6 +57,10 @@ const Tickets = () => {
   // Estados para el modal de confirmar completar
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
   const [ticketToComplete, setTicketToComplete] = useState(null);
+
+  // Estados para diálogos de éxito
+  const [openSuccessCreateDialog, setOpenSuccessCreateDialog] = useState(false);
+  const [openSuccessCompleteDialog, setOpenSuccessCompleteDialog] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -123,17 +128,22 @@ const Tickets = () => {
       
       await api.post('/tickets/', newTicket);
       
-      // Recargar tickets
-      await loadData();
-      
-      // Cerrar modal
+      // Cerrar modal de creación
       handleCloseCreateDialog();
+      
+      // Mostrar modal de éxito
+      setOpenSuccessCreateDialog(true);
     } catch (error) {
       console.error('Error al crear ticket:', error);
       setError(error.response?.data?.detail || 'Error al crear el ticket');
     } finally {
       setCreating(false);
     }
+  };
+
+  const handleSuccessCreateDialogClose = () => {
+    setOpenSuccessCreateDialog(false);
+    loadData();
   };
 
   const handleCompletarTicket = async (ticketId) => {
@@ -145,16 +155,21 @@ const Tickets = () => {
     try {
       await api.patch(`/tickets/${ticketToComplete}/`, { estado: 'COMPLETADO' });
       
-      // Recargar tickets
-      await loadData();
-      
-      // Cerrar modal
+      // Cerrar modal de confirmación
       setOpenConfirmDialog(false);
       setTicketToComplete(null);
+      
+      // Mostrar modal de éxito
+      setOpenSuccessCompleteDialog(true);
     } catch (error) {
       console.error('Error al completar ticket:', error);
       alert('Error al completar el ticket');
     }
+  };
+
+  const handleSuccessCompleteDialogClose = () => {
+    setOpenSuccessCompleteDialog(false);
+    loadData();
   };
 
   const handleCancelCompletar = () => {
@@ -521,6 +536,82 @@ const Tickets = () => {
             Confirmar
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Dialog de Éxito - Crear Ticket */}
+      <Dialog 
+        open={openSuccessCreateDialog} 
+        onClose={handleSuccessCreateDialogClose}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { bgcolor: '#003d6e', borderRadius: 2 } }}
+      >
+        <DialogContent sx={{ p: 6, textAlign: 'center' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+            <Box sx={{ width: 100, height: 100, borderRadius: 2, border: '5px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ConfirmationNumberIcon sx={{ fontSize: 60, color: 'white' }} />
+            </Box>
+          </Box>
+
+          <Typography variant="h5" sx={{ color: 'white', fontWeight: 500, mb: 4 }}>
+            ¡Ticket creado con Éxito!
+          </Typography>
+
+          <Button
+            onClick={handleSuccessCreateDialogClose}
+            sx={{
+              bgcolor: '#ff0000',
+              color: 'white',
+              fontWeight: 'bold',
+              py: 1.5,
+              px: 8,
+              textTransform: 'none',
+              borderRadius: 1,
+              fontSize: '1.1rem',
+              '&:hover': { bgcolor: '#cc0000' },
+            }}
+          >
+            Continuar
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Éxito - Completar Ticket */}
+      <Dialog 
+        open={openSuccessCompleteDialog} 
+        onClose={handleSuccessCompleteDialogClose}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { bgcolor: '#003d6e', borderRadius: 2 } }}
+      >
+        <DialogContent sx={{ p: 6, textAlign: 'center' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+            <Box sx={{ width: 100, height: 100, borderRadius: 2, border: '5px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <CheckCircleIcon sx={{ fontSize: 60, color: 'white' }} />
+            </Box>
+          </Box>
+
+          <Typography variant="h5" sx={{ color: 'white', fontWeight: 500, mb: 4 }}>
+            ¡Ticket completado con Éxito!
+          </Typography>
+
+          <Button
+            onClick={handleSuccessCompleteDialogClose}
+            sx={{
+              bgcolor: '#ff0000',
+              color: 'white',
+              fontWeight: 'bold',
+              py: 1.5,
+              px: 8,
+              textTransform: 'none',
+              borderRadius: 1,
+              fontSize: '1.1rem',
+              '&:hover': { bgcolor: '#cc0000' },
+            }}
+          >
+            Continuar
+          </Button>
+        </DialogContent>
       </Dialog>
     </Container>
   );

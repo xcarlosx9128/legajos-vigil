@@ -35,11 +35,13 @@ const Regimenes = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [openSuccessDialog, setOpenSuccessDialog] = useState(false);
   const [openStatusDialog, setOpenStatusDialog] = useState(false);
+  const [openStatusSuccessDialog, setOpenStatusSuccessDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [regimenToToggle, setRegimenToToggle] = useState(null);
+  const [statusChangeMessage, setStatusChangeMessage] = useState('');
   const [currentRegimen, setCurrentRegimen] = useState({
     nombre: '',
     descripcion: '',
@@ -153,11 +155,12 @@ const Regimenes = () => {
   const handleToggleStatus = async () => {
     try {
       const newStatus = !regimenToToggle.activo;
+      const nombreRegimen = regimenToToggle.nombre;
       await api.patch(`/regimenes/${regimenToToggle.id}/`, { activo: newStatus });
-      setSuccess(`Régimen ${newStatus ? 'activado' : 'desactivado'} exitosamente`);
+      setStatusChangeMessage(`Se ha ${newStatus ? 'activado' : 'desactivado'} el régimen ${nombreRegimen} con éxito`);
       handleCloseStatusDialog();
+      setOpenStatusSuccessDialog(true);
       loadRegimenes();
-      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error al cambiar estado:', error);
       setError('Error al cambiar el estado');
@@ -292,20 +295,20 @@ const Regimenes = () => {
                         onClick={() => handleOpenStatusDialog(regimen)}
                         sx={{
                           bgcolor: 'transparent',
-                          border: `2px solid ${regimen.activo ? '#ff9800' : '#4caf50'}`,
+                          border: `2px solid ${regimen.activo ? '#4caf50' : '#f44336'}`,
                           borderRadius: 1,
                           width: 36,
                           height: 36,
                           '&:hover': { 
-                            bgcolor: regimen.activo ? '#ff9800' : '#4caf50', 
+                            bgcolor: regimen.activo ? '#4caf50' : '#f44336', 
                             '& .MuiSvgIcon-root': { color: 'white' } 
                           },
                         }}
                       >
                         {regimen.activo ? (
-                          <ToggleOffIcon sx={{ fontSize: 18, color: '#ff9800' }} />
-                        ) : (
                           <ToggleOnIcon sx={{ fontSize: 18, color: '#4caf50' }} />
+                        ) : (
+                          <ToggleOffIcon sx={{ fontSize: 18, color: '#f44336' }} />
                         )}
                       </IconButton>
                     </Box>
@@ -504,6 +507,44 @@ const Regimenes = () => {
               Confirmar
             </Button>
           </Box>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Éxito Activar/Desactivar */}
+      <Dialog 
+        open={openStatusSuccessDialog} 
+        onClose={() => setOpenStatusSuccessDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { bgcolor: '#003d6e', borderRadius: 2 } }}
+      >
+        <DialogContent sx={{ p: 6, textAlign: 'center' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+            <Box sx={{ width: 100, height: 100, borderRadius: 2, border: '5px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ArchiveIcon sx={{ fontSize: 60, color: 'white' }} />
+            </Box>
+          </Box>
+
+          <Typography variant="h5" sx={{ color: 'white', fontWeight: 500, mb: 4 }}>
+            {statusChangeMessage}
+          </Typography>
+
+          <Button
+            onClick={() => setOpenStatusSuccessDialog(false)}
+            sx={{
+              bgcolor: '#ff0000',
+              color: 'white',
+              fontWeight: 'bold',
+              py: 1.5,
+              px: 8,
+              textTransform: 'none',
+              borderRadius: 1,
+              fontSize: '1.1rem',
+              '&:hover': { bgcolor: '#cc0000' },
+            }}
+          >
+            Continuar
+          </Button>
         </DialogContent>
       </Dialog>
     </Container>

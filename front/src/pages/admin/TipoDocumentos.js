@@ -21,12 +21,14 @@ import {
   FormControl,
   Select,
   MenuItem,
+  Chip,
 } from '@mui/material';
 import {
   Edit,
   Search as SearchIcon,
   Archive as ArchiveIcon,
-  Delete as DeleteIcon,
+  ToggleOff as ToggleOffIcon,
+  ToggleOn as ToggleOnIcon,
 } from '@mui/icons-material';
 import api from '../../services/api';
 
@@ -36,12 +38,14 @@ const TipoDocumentos = () => {
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [openSuccessDialog, setOpenSuccessDialog] = useState(false);
-  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [openStatusDialog, setOpenStatusDialog] = useState(false);
+  const [openStatusSuccessDialog, setOpenStatusSuccessDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [tipoDocToDelete, setTipoDocToDelete] = useState(null);
+  const [tipoDocToToggle, setTipoDocToToggle] = useState(null);
+  const [statusChangeMessage, setStatusChangeMessage] = useState('');
   const [currentTipoDoc, setCurrentTipoDoc] = useState({
     nombre: '',
     descripcion: '',
@@ -162,27 +166,29 @@ const TipoDocumentos = () => {
     loadData();
   };
 
-  const handleOpenDeleteDialog = (tipoDoc) => {
-    setTipoDocToDelete(tipoDoc);
-    setOpenDeleteDialog(true);
+  const handleOpenStatusDialog = (tipoDoc) => {
+    setTipoDocToToggle(tipoDoc);
+    setOpenStatusDialog(true);
   };
 
-  const handleCloseDeleteDialog = () => {
-    setOpenDeleteDialog(false);
-    setTipoDocToDelete(null);
+  const handleCloseStatusDialog = () => {
+    setOpenStatusDialog(false);
+    setTipoDocToToggle(null);
   };
 
-  const handleDelete = async () => {
+  const handleToggleStatus = async () => {
     try {
-      await api.delete(`/tipos-documento/${tipoDocToDelete.id}/`);
-      setSuccess('Tipo de documento eliminado exitosamente');
-      handleCloseDeleteDialog();
+      const newStatus = !tipoDocToToggle.activo;
+      const nombreTipoDoc = tipoDocToToggle.nombre;
+      await api.patch(`/tipos-documento/${tipoDocToToggle.id}/`, { activo: newStatus });
+      setStatusChangeMessage(`Se ha ${newStatus ? 'activado' : 'desactivado'} el tipo de documento ${nombreTipoDoc} con éxito`);
+      handleCloseStatusDialog();
+      setOpenStatusSuccessDialog(true);
       loadData();
-      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
-      console.error('Error al eliminar:', error);
-      setError('Error al eliminar el tipo de documento');
-      handleCloseDeleteDialog();
+      console.error('Error al cambiar estado:', error);
+      setError('Error al cambiar el estado');
+      handleCloseStatusDialog();
     }
   };
 
@@ -267,16 +273,17 @@ const TipoDocumentos = () => {
           <TableHead>
             <TableRow sx={{ bgcolor: '#0d3c6e' }}>
               <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '5%' }}>N°</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '30%' }}>Nombre</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '35%' }}>Descripción</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '25%' }}>Nombre</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '30%' }}>Descripción</TableCell>
               <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '15%' }}>Sección</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '10%' }} align="center">Estado</TableCell>
               <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '15%' }}>Acciones</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredTiposDocumento.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                   <Typography variant="body2" color="textSecondary">
                     No se encontraron tipos de documentos
                   </Typography>
@@ -295,6 +302,13 @@ const TipoDocumentos = () => {
                   <TableCell sx={{ fontSize: '0.875rem', py: 2.5 }}>
                     {getSeccionNombre(tipoDoc.seccion)}
                   </TableCell>
+                  <TableCell align="center" sx={{ py: 2.5 }}>
+                    <Chip
+                      label={tipoDoc.activo ? 'Activo' : 'Inactivo'}
+                      color={tipoDoc.activo ? 'success' : 'default'}
+                      size="small"
+                    />
+                  </TableCell>
                   <TableCell sx={{ py: 2.5 }}>
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       <IconButton
@@ -311,20 +325,24 @@ const TipoDocumentos = () => {
                         <Edit sx={{ fontSize: 18, color: '#003366' }} />
                       </IconButton>
                       <IconButton
-                        onClick={() => handleOpenDeleteDialog(tipoDoc)}
+                        onClick={() => handleOpenStatusDialog(tipoDoc)}
                         sx={{
                           bgcolor: 'transparent',
-                          border: '2px solid #d32f2f',
+                          border: `2px solid ${tipoDoc.activo ? '#4caf50' : '#f44336'}`,
                           borderRadius: 1,
                           width: 36,
                           height: 36,
                           '&:hover': { 
-                            bgcolor: '#d32f2f', 
+                            bgcolor: tipoDoc.activo ? '#4caf50' : '#f44336', 
                             '& .MuiSvgIcon-root': { color: 'white' } 
                           },
                         }}
                       >
-                        <DeleteIcon sx={{ fontSize: 18, color: '#d32f2f' }} />
+                        {tipoDoc.activo ? (
+                          <ToggleOnIcon sx={{ fontSize: 18, color: '#4caf50' }} />
+                        ) : (
+                          <ToggleOffIcon sx={{ fontSize: 18, color: '#f44336' }} />
+                        )}
                       </IconButton>
                     </Box>
                   </TableCell>
@@ -496,10 +514,10 @@ const TipoDocumentos = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog Eliminar */}
+      {/* Dialog Activar/Desactivar */}
       <Dialog 
-        open={openDeleteDialog} 
-        onClose={handleCloseDeleteDialog}
+        open={openStatusDialog} 
+        onClose={handleCloseStatusDialog}
         maxWidth="sm"
         fullWidth
         PaperProps={{ sx: { bgcolor: '#003d6e', borderRadius: 2 } }}
@@ -512,13 +530,13 @@ const TipoDocumentos = () => {
           </Box>
 
           <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold', mb: 4, lineHeight: 1.4 }}>
-            ¿Estás seguro de eliminar el tipo de documento<br />
-            {tipoDocToDelete?.nombre}?
+            ¿Estás seguro de {tipoDocToToggle?.activo ? 'desactivar' : 'activar'} el tipo de documento<br />
+            {tipoDocToToggle?.nombre}?
           </Typography>
 
           <Box sx={{ display: 'flex', gap: 3, justifyContent: 'center' }}>
             <Button
-              onClick={handleCloseDeleteDialog}
+              onClick={handleCloseStatusDialog}
               sx={{
                 bgcolor: '#4DD0E1',
                 color: 'black',
@@ -534,7 +552,7 @@ const TipoDocumentos = () => {
               Cancelar
             </Button>
             <Button
-              onClick={handleDelete}
+              onClick={handleToggleStatus}
               sx={{
                 bgcolor: '#ff0000',
                 color: 'white',
@@ -550,6 +568,44 @@ const TipoDocumentos = () => {
               Confirmar
             </Button>
           </Box>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Éxito Activar/Desactivar */}
+      <Dialog 
+        open={openStatusSuccessDialog} 
+        onClose={() => setOpenStatusSuccessDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { bgcolor: '#003d6e', borderRadius: 2 } }}
+      >
+        <DialogContent sx={{ p: 6, textAlign: 'center' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+            <Box sx={{ width: 100, height: 100, borderRadius: 2, border: '5px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ArchiveIcon sx={{ fontSize: 60, color: 'white' }} />
+            </Box>
+          </Box>
+
+          <Typography variant="h5" sx={{ color: 'white', fontWeight: 500, mb: 4 }}>
+            {statusChangeMessage}
+          </Typography>
+
+          <Button
+            onClick={() => setOpenStatusSuccessDialog(false)}
+            sx={{
+              bgcolor: '#ff0000',
+              color: 'white',
+              fontWeight: 'bold',
+              py: 1.5,
+              px: 8,
+              textTransform: 'none',
+              borderRadius: 1,
+              fontSize: '1.1rem',
+              '&:hover': { bgcolor: '#cc0000' },
+            }}
+          >
+            Continuar
+          </Button>
         </DialogContent>
       </Dialog>
     </Container>

@@ -35,11 +35,13 @@ const GestionAreas = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [openSuccessDialog, setOpenSuccessDialog] = useState(false);
   const [openStatusDialog, setOpenStatusDialog] = useState(false);
+  const [openStatusSuccessDialog, setOpenStatusSuccessDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [areaToToggle, setAreaToToggle] = useState(null);
+  const [statusChangeMessage, setStatusChangeMessage] = useState('');
   const [currentArea, setCurrentArea] = useState({
     nombre: '',
     codigo: '',
@@ -163,15 +165,24 @@ const GestionAreas = () => {
     try {
       const newStatus = !areaToToggle.activo;
       await api.patch(`/areas/${areaToToggle.id}/`, { activo: newStatus });
-      setSuccess(`Área ${newStatus ? 'activada' : 'desactivada'} exitosamente`);
+      
+      // Mensaje de éxito
+      setStatusChangeMessage(newStatus ? 'activada' : 'desactivada');
+      
+      // Cerrar dialog de confirmación y abrir dialog de éxito
       handleCloseStatusDialog();
-      loadAreas();
-      setTimeout(() => setSuccess(''), 3000);
+      setOpenStatusSuccessDialog(true);
     } catch (error) {
       console.error('Error al cambiar estado:', error);
       setError('Error al cambiar el estado del área');
       handleCloseStatusDialog();
     }
+  };
+
+  const handleStatusSuccessDialogClose = () => {
+    setOpenStatusSuccessDialog(false);
+    setStatusChangeMessage('');
+    loadAreas();
   };
 
   const filteredAreas = areas.filter((area) =>
@@ -306,20 +317,20 @@ const GestionAreas = () => {
                         onClick={() => handleOpenStatusDialog(area)}
                         sx={{
                           bgcolor: 'transparent',
-                          border: `2px solid ${area.activo ? '#ff9800' : '#4caf50'}`,
+                          border: `2px solid ${area.activo ? '#4caf50' : '#f44336'}`,
                           borderRadius: 1,
                           width: 36,
                           height: 36,
                           '&:hover': { 
-                            bgcolor: area.activo ? '#ff9800' : '#4caf50', 
+                            bgcolor: area.activo ? '#4caf50' : '#f44336', 
                             '& .MuiSvgIcon-root': { color: 'white' } 
                           },
                         }}
                       >
                         {area.activo ? (
-                          <ToggleOffIcon sx={{ fontSize: 18, color: '#ff9800' }} />
+                          <ToggleOffIcon sx={{ fontSize: 18, color: '#4caf50' }} />
                         ) : (
-                          <ToggleOnIcon sx={{ fontSize: 18, color: '#4caf50' }} />
+                          <ToggleOnIcon sx={{ fontSize: 18, color: '#f44336' }} />
                         )}
                       </IconButton>
                     </Box>
@@ -538,6 +549,44 @@ const GestionAreas = () => {
               Confirmar
             </Button>
           </Box>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Éxito - Activar/Desactivar */}
+      <Dialog 
+        open={openStatusSuccessDialog} 
+        onClose={handleStatusSuccessDialogClose}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { bgcolor: '#003d6e', borderRadius: 2 } }}
+      >
+        <DialogContent sx={{ p: 6, textAlign: 'center' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+            <Box sx={{ width: 100, height: 100, borderRadius: 2, border: '5px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ArchiveIcon sx={{ fontSize: 60, color: 'white' }} />
+            </Box>
+          </Box>
+
+          <Typography variant="h5" sx={{ color: 'white', fontWeight: 500, mb: 4 }}>
+            ¡El área ha sido {statusChangeMessage} con éxito!
+          </Typography>
+
+          <Button
+            onClick={handleStatusSuccessDialogClose}
+            sx={{
+              bgcolor: '#ff0000',
+              color: 'white',
+              fontWeight: 'bold',
+              py: 1.5,
+              px: 8,
+              textTransform: 'none',
+              borderRadius: 1,
+              fontSize: '1.1rem',
+              '&:hover': { bgcolor: '#cc0000' },
+            }}
+          >
+            Continuar
+          </Button>
         </DialogContent>
       </Dialog>
     </Container>

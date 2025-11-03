@@ -273,20 +273,20 @@ const CondicionLaboral = () => {
                         onClick={() => handleOpenStatusDialog(condicion)}
                         sx={{
                           bgcolor: 'transparent',
-                          border: `2px solid ${condicion.activo ? '#ff9800' : '#4caf50'}`,
+                          border: `2px solid ${condicion.activo ? '#4caf50' : '#f44336'}`,
                           borderRadius: 1,
                           width: 36,
                           height: 36,
                           '&:hover': { 
-                            bgcolor: condicion.activo ? '#ff9800' : '#4caf50', 
+                            bgcolor: condicion.activo ? '#4caf50' : '#f44336', 
                             '& .MuiSvgIcon-root': { color: 'white' } 
                           },
                         }}
                       >
                         {condicion.activo ? (
-                          <ToggleOffIcon sx={{ fontSize: 18, color: '#ff9800' }} />
-                        ) : (
                           <ToggleOnIcon sx={{ fontSize: 18, color: '#4caf50' }} />
+                        ) : (
+                          <ToggleOffIcon sx={{ fontSize: 18, color: '#f44336' }} />
                         )}
                       </IconButton>
                     </Box>

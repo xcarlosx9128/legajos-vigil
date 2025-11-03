@@ -77,10 +77,6 @@ class SeccionLegajo(models.Model):
     """
     Las 9 secciones principales del legajo SIGELP.
     """
-    numero = models.IntegerField(
-        unique=True,
-        help_text="Número de la sección (1-9)"
-    )
     nombre = models.CharField(
         max_length=200,
         unique=True,
@@ -101,8 +97,8 @@ class SeccionLegajo(models.Model):
         help_text="Indica si la sección está activa"
     )
     orden = models.IntegerField(
-        default=0,
-        help_text="Orden de visualización"
+        unique=True,
+        help_text="Orden de visualización (debe ser único)"
     )
     fecha_creacion = models.DateTimeField(default=timezone.now)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
@@ -111,14 +107,14 @@ class SeccionLegajo(models.Model):
         db_table = 'secciones_legajo'
         verbose_name = 'Sección de Legajo'
         verbose_name_plural = 'Secciones de Legajo'
-        ordering = ['numero']
+        ordering = ['orden']
     
     def __str__(self):
-        return f"{self.numero}. {self.nombre}"
+        return f"{self.orden}. {self.nombre}"
     
     def get_nombre_completo(self):
-        """Retorna el nombre con el número"""
-        return f"{self.numero}. {self.nombre}"
+        """Retorna el nombre con el orden"""
+        return f"{self.orden}. {self.nombre}"
 
 
 # ============================================

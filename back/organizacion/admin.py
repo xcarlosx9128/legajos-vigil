@@ -98,16 +98,16 @@ class CargoAdmin(admin.ModelAdmin):
 
 @admin.register(SeccionLegajo)
 class SeccionLegajoAdmin(admin.ModelAdmin):
-    """Admin para las 9 secciones del legajo SIGELP"""
-    list_display = ['numero', 'nombre', 'activo', 'orden', 'fecha_creacion']
+    """Admin para las secciones del legajo SIGELP"""
+    list_display = ['orden', 'nombre', 'color', 'activo', 'fecha_creacion']
     list_filter = ['activo', 'fecha_creacion']
     search_fields = ['nombre', 'descripcion']
-    ordering = ['numero']
-    list_editable = ['orden', 'activo']
+    ordering = ['orden']
+    list_editable = ['activo']
     
     fieldsets = (
         ('Información Básica', {
-            'fields': ('numero', 'nombre', 'orden')
+            'fields': ('nombre', 'orden')
         }),
         ('Detalles', {
             'fields': ('descripcion', 'color', 'activo')

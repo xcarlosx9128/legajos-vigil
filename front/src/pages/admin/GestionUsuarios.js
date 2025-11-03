@@ -28,6 +28,7 @@ import {
   Visibility,
   VisibilityOff,
   PersonOutline as PersonOutlineIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import api from '../../services/api';
 
@@ -37,11 +38,14 @@ const GestionUsuarios = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [openSuccessDialog, setOpenSuccessDialog] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [openToggleSuccessDialog, setOpenToggleSuccessDialog] = useState(false);
+  const [toggleMessage, setToggleMessage] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterEstado, setFilterEstado] = useState('');
+  const [filterRol, setFilterRol] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [usuarioToDelete, setUsuarioToDelete] = useState(null);
@@ -76,15 +80,32 @@ const GestionUsuarios = () => {
   const handleOpenDialog = (usuario = null) => {
     if (usuario) {
       setEditMode(true);
+      
+      // Dividir nombre_completo en nombres y apellidos
+      let nombres = '';
+      let apellidos = '';
+      if (usuario.nombre_completo) {
+        const partes = usuario.nombre_completo.trim().split(' ');
+        if (partes.length >= 2) {
+          const mitad = Math.ceil(partes.length / 2);
+          nombres = partes.slice(0, mitad).join(' ');
+          apellidos = partes.slice(mitad).join(' ');
+        } else if (partes.length === 1) {
+          nombres = partes[0];
+        }
+      }
+      
+      // NOTA: dni y telefono no vienen en la respuesta de la API
+      // Por lo tanto, estarán vacíos en modo edición
       setCurrentUsuario({
         id: usuario.id,
-        username: usuario.username,
-        email: usuario.email,
-        nombres: usuario.nombres,
-        apellidos: usuario.apellidos,
-        dni: usuario.dni || '',
-        telefono: usuario.telefono || '',
-        rol: usuario.rol,
+        username: usuario.username || '',
+        email: usuario.email || '',
+        nombres: nombres,
+        apellidos: apellidos,
+        dni: '', // No disponible en la respuesta de la API
+        telefono: '', // No disponible en la respuesta de la API
+        rol: usuario.rol || '',
         password: '',
         password_confirm: '',
       });
@@ -129,14 +150,31 @@ const GestionUsuarios = () => {
 
     try {
       if (editMode) {
-        await api.patch(`/usuarios/${currentUsuario.id}/`, {
+        // Validar contraseñas si se proporcionaron
+        if (currentUsuario.password || currentUsuario.password_confirm) {
+          if (currentUsuario.password !== currentUsuario.password_confirm) {
+            setError('Las contraseñas no coinciden');
+            return;
+          }
+        }
+
+        // Preparar datos para edición - solo enviar lo editable
+        const dataToUpdate = {
           email: currentUsuario.email,
-          nombres: currentUsuario.nombres,
-          apellidos: currentUsuario.apellidos,
-          dni: currentUsuario.dni,
-          telefono: currentUsuario.telefono,
           rol: currentUsuario.rol,
-        });
+        };
+
+        // Incluir teléfono solo si tiene valor
+        if (currentUsuario.telefono) {
+          dataToUpdate.telefono = currentUsuario.telefono;
+        }
+
+        // Solo incluir contraseña si se proporcionó
+        if (currentUsuario.password) {
+          dataToUpdate.password = currentUsuario.password;
+        }
+
+        await api.patch(`/usuarios/${currentUsuario.id}/`, dataToUpdate);
         handleCloseDialog();
         setOpenSuccessDialog(true);
       } else {
@@ -183,10 +221,30 @@ const GestionUsuarios = () => {
   const handleToggleActive = async (usuario) => {
     try {
       await api.post(`/usuarios/${usuario.id}/toggle_active/`);
-      setSuccess(`Usuario ${usuario.is_active ? 'deshabilitado' : 'habilitado'} exitosamente`);
-      loadUsuarios();
+      const message = usuario.is_active ? 'deshabilitado' : 'habilitado';
+      setToggleMessage(`Usuario ${message} exitosamente`);
+      setOpenToggleSuccessDialog(true);
     } catch (error) {
       setError('Error al cambiar estado del usuario');
+    }
+  };
+
+  const handleToggleSuccessDialogClose = () => {
+    setOpenToggleSuccessDialog(false);
+    loadUsuarios();
+  };
+
+  const handleDniChange = (e) => {
+    const value = e.target.value.replace(/\D/g, '');
+    if (value.length <= 8) {
+      setCurrentUsuario({ ...currentUsuario, dni: value });
+    }
+  };
+
+  const handleTelefonoChange = (e) => {
+    const value = e.target.value.replace(/\D/g, '');
+    if (value.length <= 9) {
+      setCurrentUsuario({ ...currentUsuario, telefono: value });
     }
   };
 
@@ -201,7 +259,11 @@ const GestionUsuarios = () => {
       (filterEstado === 'ACTIVO' && usuario.is_active) ||
       (filterEstado === 'DESHABILITADO' && !usuario.is_active);
     
-    return matchSearch && matchEstado;
+    const matchRol = 
+      filterRol === '' ||
+      usuario.rol === filterRol;
+    
+    return matchSearch && matchEstado && matchRol;
   });
 
   if (loading) {
@@ -267,6 +329,28 @@ const GestionUsuarios = () => {
               <MenuItem value="">Buscar Estado</MenuItem>
               <MenuItem value="ACTIVO">Activo</MenuItem>
               <MenuItem value="DESHABILITADO">Deshabilitado</MenuItem>
+            </TextField>
+
+            <TextField
+              select
+              size="small"
+              value={filterRol}
+              onChange={(e) => setFilterRol(e.target.value)}
+              displayEmpty
+              sx={{
+                width: 200,
+                bgcolor: 'white',
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': { borderColor: '#d0d0d0' },
+                  '&:hover fieldset': { borderColor: '#003366' },
+                },
+              }}
+            >
+              <MenuItem value="">Buscar Rol</MenuItem>
+              <MenuItem value="ADMIN">Administrador</MenuItem>
+              <MenuItem value="SUBGERENTE">Subgerente</MenuItem>
+              <MenuItem value="ENCARGADO">Encargado de Archivo</MenuItem>
+              <MenuItem value="COORDINADOR">Coordinador</MenuItem>
             </TextField>
 
             <Button
@@ -386,7 +470,7 @@ const GestionUsuarios = () => {
           </Typography>
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-            {/* Usuario */}
+            {/* Usuario - BLOQUEADO en edición */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '180px' }}>
                 Usuario:
@@ -400,17 +484,21 @@ const GestionUsuarios = () => {
                 placeholder="usuario123"
                 required
                 sx={{
-                  bgcolor: 'white',
+                  bgcolor: editMode ? '#f5f5f5' : 'white',
                   borderRadius: 3,
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 3,
                     '& fieldset': { border: 'none' },
                   },
+                  '& .MuiInputBase-input.Mui-disabled': {
+                    WebkitTextFillColor: '#333',
+                    color: '#333',
+                  },
                 }}
               />
             </Box>
 
-            {/* Nombres */}
+            {/* Nombres - BLOQUEADO en edición */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '180px' }}>
                 Nombres:
@@ -420,20 +508,25 @@ const GestionUsuarios = () => {
                 size="small"
                 value={currentUsuario.nombres}
                 onChange={(e) => setCurrentUsuario({ ...currentUsuario, nombres: e.target.value })}
+                disabled={editMode}
                 placeholder="Carlos"
                 required
                 sx={{
-                  bgcolor: 'white',
+                  bgcolor: editMode ? '#f5f5f5' : 'white',
                   borderRadius: 3,
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 3,
                     '& fieldset': { border: 'none' },
                   },
+                  '& .MuiInputBase-input.Mui-disabled': {
+                    WebkitTextFillColor: '#333',
+                    color: '#333',
+                  },
                 }}
               />
             </Box>
 
-            {/* Apellidos */}
+            {/* Apellidos - BLOQUEADO en edición */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '180px' }}>
                 Apellidos:
@@ -443,20 +536,25 @@ const GestionUsuarios = () => {
                 size="small"
                 value={currentUsuario.apellidos}
                 onChange={(e) => setCurrentUsuario({ ...currentUsuario, apellidos: e.target.value })}
+                disabled={editMode}
                 placeholder="Pizango"
                 required
                 sx={{
-                  bgcolor: 'white',
+                  bgcolor: editMode ? '#f5f5f5' : 'white',
                   borderRadius: 3,
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 3,
                     '& fieldset': { border: 'none' },
                   },
+                  '& .MuiInputBase-input.Mui-disabled': {
+                    WebkitTextFillColor: '#333',
+                    color: '#333',
+                  },
                 }}
               />
             </Box>
 
-            {/* DNI */}
+            {/* DNI - BLOQUEADO en edición */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '180px' }}>
                 DNI:
@@ -465,20 +563,30 @@ const GestionUsuarios = () => {
                 fullWidth
                 size="small"
                 value={currentUsuario.dni}
-                onChange={(e) => setCurrentUsuario({ ...currentUsuario, dni: e.target.value })}
+                onChange={handleDniChange}
+                disabled={editMode}
                 placeholder="12345678"
+                inputProps={{
+                  maxLength: 8,
+                  inputMode: 'numeric',
+                  pattern: '[0-9]*'
+                }}
                 sx={{
-                  bgcolor: 'white',
+                  bgcolor: editMode ? '#f5f5f5' : 'white',
                   borderRadius: 3,
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 3,
                     '& fieldset': { border: 'none' },
                   },
+                  '& .MuiInputBase-input.Mui-disabled': {
+                    WebkitTextFillColor: '#333',
+                    color: '#333',
+                  },
                 }}
               />
             </Box>
 
-            {/* Teléfono */}
+            {/* Teléfono - EDITABLE */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '180px' }}>
                 Teléfono:
@@ -487,8 +595,13 @@ const GestionUsuarios = () => {
                 fullWidth
                 size="small"
                 value={currentUsuario.telefono}
-                onChange={(e) => setCurrentUsuario({ ...currentUsuario, telefono: e.target.value })}
+                onChange={handleTelefonoChange}
                 placeholder="987654321"
+                inputProps={{
+                  maxLength: 9,
+                  inputMode: 'numeric',
+                  pattern: '[0-9]*'
+                }}
                 sx={{
                   bgcolor: 'white',
                   borderRadius: 3,
@@ -500,7 +613,7 @@ const GestionUsuarios = () => {
               />
             </Box>
 
-            {/* Email */}
+            {/* Email - EDITABLE */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '180px' }}>
                 Email:
@@ -524,76 +637,72 @@ const GestionUsuarios = () => {
               />
             </Box>
 
-            {/* Contraseña - Solo al crear */}
-            {!editMode && (
-              <>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '180px' }}>
-                    Contraseña:
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    type={showPassword ? 'text' : 'password'}
-                    value={currentUsuario.password}
-                    onChange={(e) => setCurrentUsuario({ ...currentUsuario, password: e.target.value })}
-                    placeholder="contraseña123"
-                    required
-                    sx={{
-                      bgcolor: 'white',
-                      borderRadius: 3,
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 3,
-                        '& fieldset': { border: 'none' },
-                      },
-                    }}
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" size="small">
-                            {showPassword ? <VisibilityOff /> : <Visibility />}
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Box>
+            {/* Contraseña - SIEMPRE MOSTRAR */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '180px' }}>
+                {editMode ? 'Nueva Contraseña (Opcional):' : 'Contraseña:'}
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                type={showPassword ? 'text' : 'password'}
+                value={currentUsuario.password}
+                onChange={(e) => setCurrentUsuario({ ...currentUsuario, password: e.target.value })}
+                placeholder={editMode ? "Dejar vacío para no cambiar" : "contraseña123"}
+                required={!editMode}
+                sx={{
+                  bgcolor: 'white',
+                  borderRadius: 3,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 3,
+                    '& fieldset': { border: 'none' },
+                  },
+                }}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" size="small">
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Box>
 
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '180px' }}>
-                    Confirmar contraseña:
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    value={currentUsuario.password_confirm}
-                    onChange={(e) => setCurrentUsuario({ ...currentUsuario, password_confirm: e.target.value })}
-                    placeholder="contraseña123"
-                    required
-                    sx={{
-                      bgcolor: 'white',
-                      borderRadius: 3,
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 3,
-                        '& fieldset': { border: 'none' },
-                      },
-                    }}
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton onClick={() => setShowConfirmPassword(!showConfirmPassword)} edge="end" size="small">
-                            {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Box>
-              </>
-            )}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '180px' }}>
+                {editMode ? 'Confirmar Nueva Contraseña:' : 'Confirmar contraseña:'}
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={currentUsuario.password_confirm}
+                onChange={(e) => setCurrentUsuario({ ...currentUsuario, password_confirm: e.target.value })}
+                placeholder={editMode ? "Confirmar nueva contraseña" : "contraseña123"}
+                required={!editMode}
+                sx={{
+                  bgcolor: 'white',
+                  borderRadius: 3,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 3,
+                    '& fieldset': { border: 'none' },
+                  },
+                }}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton onClick={() => setShowConfirmPassword(!showConfirmPassword)} edge="end" size="small">
+                        {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Box>
 
-            {/* Rol */}
+            {/* Rol - EDITABLE */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '180px' }}>
                 Rol:
@@ -704,6 +813,64 @@ const GestionUsuarios = () => {
           <Box sx={{ display: 'flex', justifyContent: 'center' }}>
             <Button
               onClick={handleSuccessDialogClose}
+              sx={{
+                bgcolor: '#ff0000',
+                color: 'white',
+                fontWeight: 'bold',
+                py: 1.5,
+                px: 8,
+                textTransform: 'none',
+                borderRadius: 2,
+                fontSize: '1.1rem',
+                '&:hover': {
+                  bgcolor: '#cc0000',
+                },
+              }}
+            >
+              Continuar
+            </Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Éxito (Activar/Desactivar) */}
+      <Dialog 
+        open={openToggleSuccessDialog} 
+        onClose={handleToggleSuccessDialogClose}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: '#003d6e',
+            borderRadius: 2,
+            border: '3px solid #4DD0E1',
+          }
+        }}
+      >
+        <DialogContent sx={{ p: 6, textAlign: 'center' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+            <Box
+              sx={{
+                width: 100,
+                height: 100,
+                borderRadius: '50%',
+                border: '5px solid white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <CheckCircleIcon sx={{ fontSize: 60, color: 'white' }} />
+            </Box>
+          </Box>
+
+          <Typography variant="h5" sx={{ color: 'white', fontWeight: 500, mb: 4, textTransform: 'capitalize' }}>
+            ¡{toggleMessage}!
+          </Typography>
+
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+            <Button
+              onClick={handleToggleSuccessDialogClose}
               sx={{
                 bgcolor: '#ff0000',
                 color: 'white',

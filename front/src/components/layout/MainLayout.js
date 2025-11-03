@@ -73,7 +73,7 @@ const MainLayout = ({ children }) => {
       case 'SUBGERENTE':
         return [
           ...baseItems,
-          { text: 'Consultar Personal', icon: <PersonIcon />, path: '/subgerente/consultar-personal' },
+          
           { text: 'Gestionar Personal', icon: <PeopleIcon />, path: '/gestionar-personal' },
           { text: 'Tickets', icon: <AssignmentIcon />, path: '/tickets' },
         ];
