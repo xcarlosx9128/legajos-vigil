@@ -16,6 +16,10 @@ from usuarios.permissions import CanManagePersonal
 
 
 class PersonalViewSet(viewsets.ModelViewSet):
+    """
+    ✅ Lectura: Todos los usuarios autenticados
+    ✅ Escritura: Solo ADMIN/COORDINADOR/ENCARGADO
+    """
     queryset = Personal.objects.all()
     permission_classes = [IsAuthenticated]
     
@@ -27,8 +31,10 @@ class PersonalViewSet(viewsets.ModelViewSet):
         return PersonalSerializer
     
     def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update']:
+        # ✅ Solo CanManagePersonal para crear/editar/eliminar
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsAuthenticated(), CanManagePersonal()]
+        # ✅ Todos pueden leer
         return [IsAuthenticated()]
     
     def get_queryset(self):
@@ -36,13 +42,13 @@ class PersonalViewSet(viewsets.ModelViewSet):
             'area_actual', 'regimen_actual', 'condicion_actual'
         )
         
-        # Filtros
         dni = self.request.query_params.get('dni', None)
         activo = self.request.query_params.get('activo', None)
         area = self.request.query_params.get('area', None)
         regimen = self.request.query_params.get('regimen', None)
         condicion = self.request.query_params.get('condicion', None)
         search = self.request.query_params.get('search', None)
+        cargo = self.request.query_params.get('cargo', None)
         
         if dni:
             queryset = queryset.filter(dni=dni)
@@ -54,6 +60,8 @@ class PersonalViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(regimen_actual_id=regimen)
         if condicion:
             queryset = queryset.filter(condicion_actual_id=condicion)
+        if cargo:
+            queryset = queryset.filter(cargo_actual=cargo)
         if search:
             queryset = queryset.filter(
                 Q(dni__icontains=search) |
@@ -74,11 +82,9 @@ class PersonalViewSet(viewsets.ModelViewSet):
         print(f"✅ Personal creado: {personal.nombre_completo} (ID: {personal.id})")
         print(f"📄 ¿Tiene documento?: {bool(personal.documento)}")
         
-        # Si tiene documento, guardarlo en el legajo
         if personal.documento:
             print("📁 Documento detectado, guardando en Legajo...")
             try:
-                # Buscar la sección 9 (Otros/Documentos Varios)
                 seccion_otros = SeccionLegajo.objects.filter(orden=9, activo=True).first()
                 if not seccion_otros:
                     print("⚠️ No se encontró la sección 9 activa, buscando cualquier sección activa...")
@@ -90,7 +96,6 @@ class PersonalViewSet(viewsets.ModelViewSet):
                 
                 print(f"✅ Sección encontrada: {seccion_otros.orden}. {seccion_otros.nombre}")
                 
-                # Buscar un tipo de documento activo
                 tipo_documento = TipoDocumento.objects.filter(activo=True).first()
                 if not tipo_documento:
                     print("❌ ERROR: No hay tipos de documento activos")
@@ -98,7 +103,6 @@ class PersonalViewSet(viewsets.ModelViewSet):
                 
                 print(f"✅ Tipo de documento: {tipo_documento.nombre}")
                 
-                # Crear el documento en Legajo
                 legajo = Legajo.objects.create(
                     personal=personal,
                     seccion=seccion_otros,
@@ -125,11 +129,31 @@ class PersonalViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         
-        # Registrar evento
-        registrar(usuario_ejecutor=request.user, id_evento=3)
+        personal = serializer.instance
+        registrar(
+            usuario_ejecutor=request.user, 
+            id_evento=3,
+            personal_afectado=personal
+        )
         
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    
+    def update(self, request, *args, **kwargs):
+        """Actualizar personal y registrar evento"""
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        
+        registrar(
+            usuario_ejecutor=request.user,
+            id_evento=6,
+            personal_afectado=instance
+        )
+        
+        return Response(serializer.data)
     
     @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
     def escalafon(self, request, pk=None):
@@ -157,18 +181,36 @@ class PersonalViewSet(viewsets.ModelViewSet):
         personal = self.get_object()
         personal.activo = not personal.activo
         personal.save()
+        
+        registrar(
+            usuario_ejecutor=request.user,
+            id_evento=7,
+            personal_afectado=personal
+        )
+        
         serializer = self.get_serializer(personal)
         return Response(serializer.data)
 
 
 class EscalafonViewSet(viewsets.ModelViewSet):
+    """
+    ✅ Lectura: Todos los usuarios autenticados
+    ✅ Escritura: Solo ADMIN/COORDINADOR/ENCARGADO
+    """
     queryset = Escalafon.objects.all()
-    permission_classes = [IsAuthenticated, CanManagePersonal]
+    permission_classes = [IsAuthenticated]
     
     def get_serializer_class(self):
         if self.action == 'create':
             return EscalafonCreateSerializer
         return EscalafonSerializer
+    
+    def get_permissions(self):
+        # ✅ Solo CanManagePersonal para crear/editar
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), CanManagePersonal()]
+        # ✅ Todos pueden leer
+        return [IsAuthenticated()]
     
     def get_queryset(self):
         queryset = Escalafon.objects.select_related(
@@ -184,7 +226,6 @@ class EscalafonViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         escalafon = serializer.save()
         
-        # Actualizar datos actuales del personal si es el registro más reciente
         personal = escalafon.personal
         if not escalafon.fecha_fin:
             personal.area_actual = escalafon.area
@@ -192,6 +233,22 @@ class EscalafonViewSet(viewsets.ModelViewSet):
             personal.condicion_actual = escalafon.condicion_laboral
             personal.cargo_actual = escalafon.cargo
             personal.save()
+    
+    def create(self, request, *args, **kwargs):
+        """Crear escalafón y registrar evento"""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        
+        escalafon = serializer.instance
+        registrar(
+            usuario_ejecutor=request.user,
+            id_evento=8,
+            personal_afectado=escalafon.personal
+        )
+        
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
     def update(self, request, *args, **kwargs):
         """Actualizar escalafón y registrar evento"""
@@ -201,7 +258,11 @@ class EscalafonViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         
-        registrar(usuario_ejecutor=request.user, id_evento=8)
+        registrar(
+            usuario_ejecutor=request.user,
+            id_evento=8,
+            personal_afectado=instance.personal
+        )
         
         if getattr(instance, '_prefetched_objects_cache', None):
             instance._prefetched_objects_cache = {}
@@ -211,16 +272,23 @@ class EscalafonViewSet(viewsets.ModelViewSet):
 
 class LegajoViewSet(viewsets.ModelViewSet):
     """
-    ViewSet para gestión de documentos del legajo
-    ⭐ SIMPLIFICADO CON SOLO FECHA_CREACION
+    ✅ Lectura: Todos los usuarios autenticados
+    ✅ Escritura: Solo ADMIN/COORDINADOR/ENCARGADO
     """
     queryset = Legajo.objects.all()
-    permission_classes = [IsAuthenticated, CanManagePersonal]
+    permission_classes = [IsAuthenticated]
     
     def get_serializer_class(self):
         if self.action == 'create':
             return LegajoCreateSerializer
         return LegajoSerializer
+    
+    def get_permissions(self):
+        # ✅ Solo CanManagePersonal para crear/editar/eliminar
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), CanManagePersonal()]
+        # ✅ Todos pueden leer
+        return [IsAuthenticated()]
     
     def get_queryset(self):
         queryset = Legajo.objects.select_related(
@@ -230,7 +298,6 @@ class LegajoViewSet(viewsets.ModelViewSet):
             'registrado_por'
         )
         
-        # Filtros
         personal_id = self.request.query_params.get('personal', None)
         seccion_id = self.request.query_params.get('seccion', None)
         tipo = self.request.query_params.get('tipo', None)
@@ -242,7 +309,7 @@ class LegajoViewSet(viewsets.ModelViewSet):
         if tipo:
             queryset = queryset.filter(tipo_documento_id=tipo)
         
-        return queryset.order_by('-fecha_creacion')  # ⭐ Más recientes primero
+        return queryset.order_by('-fecha_creacion')
     
     def perform_create(self, serializer):
         """Crear documento y asignar usuario que lo registra"""
@@ -254,11 +321,14 @@ class LegajoViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         
-        registrar(usuario_ejecutor=request.user, id_evento=4)
+        legajo = serializer.instance
+        registrar(
+            usuario_ejecutor=request.user,
+            id_evento=4,
+            personal_afectado=legajo.personal
+        )
         
-        # Devolver el objeto completo
-        instance = serializer.instance
-        output_serializer = LegajoSerializer(instance, context={'request': request})
+        output_serializer = LegajoSerializer(legajo, context={'request': request})
         
         headers = self.get_success_headers(output_serializer.data)
         return Response(
@@ -275,7 +345,11 @@ class LegajoViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         
-        registrar(usuario_ejecutor=request.user, id_evento=5)
+        registrar(
+            usuario_ejecutor=request.user,
+            id_evento=5,
+            personal_afectado=instance.personal
+        )
         
         if getattr(instance, '_prefetched_objects_cache', None):
             instance._prefetched_objects_cache = {}
@@ -285,8 +359,8 @@ class LegajoViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         """Eliminar documento del legajo"""
         instance = self.get_object()
+        personal = instance.personal
         
-        # Eliminar el archivo físico
         if instance.archivo:
             try:
                 instance.archivo.delete(save=False)
@@ -294,6 +368,13 @@ class LegajoViewSet(viewsets.ModelViewSet):
                 print(f"Error al eliminar archivo físico: {e}")
         
         self.perform_destroy(instance)
+        
+        registrar(
+            usuario_ejecutor=request.user,
+            id_evento=9,
+            personal_afectado=personal
+        )
+        
         return Response(
             {'message': 'Documento eliminado exitosamente'},
             status=status.HTTP_204_NO_CONTENT

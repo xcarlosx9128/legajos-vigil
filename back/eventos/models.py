@@ -41,6 +41,16 @@ class RegistroEvento(models.Model):
         help_text='Usuario sobre el que se realizó la acción'
     )
     
+    # ⭐ NUEVO: Personal afectado (opcional - cuando la acción es sobre un personal)
+    personal_afectado = models.ForeignKey(
+        'personal.Personal',
+        on_delete=models.CASCADE,
+        related_name='eventos_personal',
+        null=True,
+        blank=True,
+        help_text='Personal sobre el que se realizó la acción'
+    )
+    
     # Tipo de evento
     evento = models.ForeignKey(
         Evento,
@@ -59,6 +69,7 @@ class RegistroEvento(models.Model):
         indexes = [
             models.Index(fields=['-fecha_hora']),
             models.Index(fields=['usuario_ejecutor', '-fecha_hora']),
+            models.Index(fields=['personal_afectado', '-fecha_hora']),
         ]
     
     def __str__(self):

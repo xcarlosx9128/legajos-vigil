@@ -21,6 +21,7 @@ class RegistroEventoViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = RegistroEvento.objects.all().select_related(
         'usuario_ejecutor', 
         'usuario_afectado', 
+        'personal_afectado',  # ⭐ NUEVO
         'evento'
     )
     serializer_class = RegistroEventoSerializer
@@ -38,6 +39,11 @@ class RegistroEventoViewSet(viewsets.ReadOnlyModelViewSet):
         evento = self.request.query_params.get('evento')
         if evento:
             queryset = queryset.filter(evento_id=evento)
+        
+        # ⭐ NUEVO: Filtrar por personal afectado
+        personal_afectado = self.request.query_params.get('personal_afectado')
+        if personal_afectado:
+            queryset = queryset.filter(personal_afectado_id=personal_afectado)
         
         # Filtrar por fecha
         fecha_desde = self.request.query_params.get('fecha_desde')

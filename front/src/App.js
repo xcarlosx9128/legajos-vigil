@@ -9,6 +9,7 @@ import Login from './pages/auth/Login';
 import Dashboard from './pages/Dashboard';
 import Eventos from './pages/Eventos';
 import Tickets from './pages/Tickets';
+import VerTickets from './pages/VerTickets'; // ⭐ NUEVO
 import GestionUsuarios from './pages/admin/GestionUsuarios';
 import GestionAreas from './pages/admin/GestionAreas';
 import ConfiguracionOrganizacional from './pages/admin/ConfiguracionOrganizacional';
@@ -18,10 +19,11 @@ import SeccionesLegajo from './pages/admin/SeccionesLegajo';
 import TipoDocumentos from './pages/admin/TipoDocumentos';
 import CargosPersonal from './pages/admin/CargosPersonal';
 import ConsultarPersonal from './pages/subgerente/ConsultarPersonal';
-import GestionarPersonal from './pages/GestionarPersonal';
-import VisualizarLegajo from './pages/VisualizarLegajo'; // ⭐ NUEVO
+import GestionarPersonal from './pages/GestionarPersonal'; // SIN botón añadir
+import AnadirPersonal from './pages/AnadirPersonal'; // ⭐ NUEVO - CON botón añadir
+import VisualizarLegajo from './pages/VisualizarLegajo';
 import EditarLegajo from './pages/EditarLegajo';
-import VisualizarEscalafon from './pages/VisualizarEscalafon'; // ⭐ NUEVO
+import VisualizarEscalafon from './pages/VisualizarEscalafon';
 import EditarHistorialEscalafon from './pages/EditarHistorialEscalafon';
 
 const theme = createTheme({
@@ -69,7 +71,9 @@ function App() {
               }
             />
 
-            {/* Tickets */}
+            {/* ==================== TICKETS ==================== */}
+            
+            {/* Tickets - Generar (CON botón) */}
             <Route
               path="/tickets"
               element={
@@ -81,8 +85,33 @@ function App() {
               }
             />
 
-            {/* ⭐ GESTIÓN DE PERSONAL */}
-            {/* Página principal de Gestionar Personal */}
+            {/* ⭐ Ver Tickets (SIN botón generar) */}
+            <Route
+              path="/ver-tickets"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <VerTickets />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ==================== GESTIÓN DE PERSONAL ==================== */}
+            
+            {/* ⭐ NUEVO: Añadir Personal (CON botón añadir + expandir) */}
+            <Route
+              path="/anadir-personal"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <AnadirPersonal />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Gestionar Personal (SIN botón añadir + CON expandir) */}
             <Route
               path="/gestionar-personal"
               element={
@@ -94,7 +123,7 @@ function App() {
               }
             />
 
-            {/* ⭐ NUEVO: Visualizar Legajo (solo lectura) */}
+            {/* ⭐ Visualizar Legajo (solo lectura) */}
             <Route
               path="/personal/:id/visualizar-legajo"
               element={
@@ -106,7 +135,7 @@ function App() {
               }
             />
 
-            {/* ⭐ NUEVO: Editar Legajo (documentos) */}
+            {/* ⭐ Editar Legajo (documentos) */}
             <Route
               path="/personal/:id/editar-legajo"
               element={
@@ -118,7 +147,7 @@ function App() {
               }
             />
 
-            {/* ⭐ NUEVO: Visualizar Escalafón (solo lectura) */}
+            {/* ⭐ Visualizar Escalafón (solo lectura) */}
             <Route
               path="/personal/:id/visualizar-escalafon"
               element={
@@ -130,7 +159,7 @@ function App() {
               }
             />
 
-            {/* ⭐ NUEVO: Editar Historial Escalafón */}
+            {/* ⭐ Editar Historial Escalafón */}
             <Route
               path="/personal/:id/editar-escalafon"
               element={
@@ -142,7 +171,8 @@ function App() {
               }
             />
 
-            {/* Rutas de Admin */}
+            {/* ==================== RUTAS DE ADMIN ==================== */}
+            
             <Route
               path="/admin/usuarios"
               element={
@@ -237,7 +267,8 @@ function App() {
               }
             />
 
-            {/* Rutas de Subgerente */}
+            {/* ==================== RUTAS DE SUBGERENTE ==================== */}
+            
             <Route
               path="/subgerente/consultar-personal"
               element={

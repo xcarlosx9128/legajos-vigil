@@ -11,11 +11,19 @@ class EventoAdmin(admin.ModelAdmin):
 
 @admin.register(RegistroEvento)
 class RegistroEventoAdmin(admin.ModelAdmin):
-    list_display = ['id', 'fecha_hora', 'usuario_ejecutor', 'evento', 'usuario_afectado']
+    list_display = ['id', 'fecha_hora', 'usuario_ejecutor', 'evento', 'usuario_afectado', 'personal_afectado']
     list_filter = ['evento', 'fecha_hora']
-    search_fields = ['usuario_ejecutor__username', 'usuario_afectado__username', 'evento__nombre']
+    search_fields = [
+        'usuario_ejecutor__username', 
+        'usuario_afectado__username', 
+        'personal_afectado__dni',
+        'personal_afectado__nombres',
+        'personal_afectado__apellido_paterno',
+        'personal_afectado__apellido_materno',
+        'evento__nombre'
+    ]
     date_hierarchy = 'fecha_hora'
-    readonly_fields = ['usuario_ejecutor', 'evento', 'usuario_afectado', 'fecha_hora']
+    readonly_fields = ['usuario_ejecutor', 'evento', 'usuario_afectado', 'personal_afectado', 'fecha_hora']
     list_per_page = 100
     
     def has_add_permission(self, request):

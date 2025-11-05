@@ -23,43 +23,22 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Alert,
 } from '@mui/material';
 import {
   Search as SearchIcon,
-  Add as AddIcon,
   CheckCircle as CheckCircleIcon,
-  ConfirmationNumber as ConfirmationNumberIcon,
 } from '@mui/icons-material';
-import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
-const Tickets = () => {
-  const { user } = useAuth();
+const VerTickets = () => {
   const [tickets, setTickets] = useState([]);
   const [areas, setAreas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
   
-  // Estados para el modal de crear ticket
-  const [openCreateDialog, setOpenCreateDialog] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState('');
-  const [newTicket, setNewTicket] = useState({
-    nombre: '',
-    apellido: '',
-    persona_responsable: '',
-    area: '',
-    observaciones: '',
-  });
-
-  // Estados para el modal de confirmar completar
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
   const [ticketToComplete, setTicketToComplete] = useState(null);
-
-  // Estados para diálogos de éxito
-  const [openSuccessCreateDialog, setOpenSuccessCreateDialog] = useState(false);
   const [openSuccessCompleteDialog, setOpenSuccessCompleteDialog] = useState(false);
 
   useEffect(() => {
@@ -83,69 +62,6 @@ const Tickets = () => {
     }
   };
 
-  const handleOpenCreateDialog = () => {
-    setOpenCreateDialog(true);
-    setError('');
-    setNewTicket({
-      nombre: '',
-      apellido: '',
-      persona_responsable: '',
-      area: '',
-      observaciones: '',
-    });
-  };
-
-  const handleCloseCreateDialog = () => {
-    setOpenCreateDialog(false);
-    setError('');
-  };
-
-  const handleInputChange = (field, value) => {
-    setNewTicket(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const handleCreateTicket = async () => {
-    // Validaciones
-    if (!newTicket.nombre.trim()) {
-      setError('El nombre es obligatorio');
-      return;
-    }
-    if (!newTicket.apellido.trim()) {
-      setError('El apellido es obligatorio');
-      return;
-    }
-    if (!newTicket.observaciones.trim()) {
-      setError('Las observaciones son obligatorias');
-      return;
-    }
-
-    try {
-      setCreating(true);
-      setError('');
-      
-      await api.post('/tickets/', newTicket);
-      
-      // Cerrar modal de creación
-      handleCloseCreateDialog();
-      
-      // Mostrar modal de éxito
-      setOpenSuccessCreateDialog(true);
-    } catch (error) {
-      console.error('Error al crear ticket:', error);
-      setError(error.response?.data?.detail || 'Error al crear el ticket');
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleSuccessCreateDialogClose = () => {
-    setOpenSuccessCreateDialog(false);
-    loadData();
-  };
-
   const handleCompletarTicket = async (ticketId) => {
     setTicketToComplete(ticketId);
     setOpenConfirmDialog(true);
@@ -154,12 +70,8 @@ const Tickets = () => {
   const handleConfirmCompletar = async () => {
     try {
       await api.patch(`/tickets/${ticketToComplete}/`, { estado: 'COMPLETADO' });
-      
-      // Cerrar modal de confirmación
       setOpenConfirmDialog(false);
       setTicketToComplete(null);
-      
-      // Mostrar modal de éxito
       setOpenSuccessCompleteDialog(true);
     } catch (error) {
       console.error('Error al completar ticket:', error);
@@ -212,11 +124,8 @@ const Tickets = () => {
     
     return matchSearch && matchEstado;
   }).sort((a, b) => {
-    // Primero ordenar por estado: PENDIENTE antes que COMPLETADO
     if (a.estado === 'PENDIENTE' && b.estado === 'COMPLETADO') return -1;
     if (a.estado === 'COMPLETADO' && b.estado === 'PENDIENTE') return 1;
-    
-    // Si tienen el mismo estado, ordenar por fecha de creación (más reciente primero)
     return new Date(b.fecha_creacion) - new Date(a.fecha_creacion);
   });
 
@@ -230,30 +139,14 @@ const Tickets = () => {
 
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#003366', mb: 1 }}>
-            Tickets
-          </Typography>
-          <Typography variant="body1" color="textSecondary">
-            Tickets del sistema
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          sx={{
-            bgcolor: '#003366',
-            '&:hover': { bgcolor: '#002244' },
-            textTransform: 'none',
-            px: 3,
-            py: 1.5,
-          }}
-          onClick={handleOpenCreateDialog}
-        >
-          Generar Nuevo Ticket
-        </Button>
+      {/* Header SIN BOTÓN */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#003366', mb: 1 }}>
+          Ver Tickets
+        </Typography>
+        <Typography variant="body1" color="textSecondary">
+          Tickets del sistema
+        </Typography>
       </Box>
 
       {/* Filtros */}
@@ -376,7 +269,6 @@ const Tickets = () => {
           </Table>
         </TableContainer>
         
-        {/* Footer */}
         <Box sx={{ p: 2, bgcolor: '#f5f5f5', borderTop: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="body2" color="textSecondary">
             Sistema Seguro para Tramitar Documentos Oficiales
@@ -387,103 +279,7 @@ const Tickets = () => {
         </Box>
       </Paper>
 
-      {/* Dialog para crear ticket */}
-      <Dialog open={openCreateDialog} onClose={handleCloseCreateDialog} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ bgcolor: '#003366', color: 'white', fontWeight: 'bold' }}>
-          Generar Nuevo Ticket
-        </DialogTitle>
-        <DialogContent sx={{ mt: 3 }}>
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              fullWidth
-              label="Nombre *"
-              value={newTicket.nombre}
-              onChange={(e) => handleInputChange('nombre', e.target.value)}
-              placeholder="Ingrese el nombre"
-            />
-
-            <TextField
-              fullWidth
-              label="Apellido *"
-              value={newTicket.apellido}
-              onChange={(e) => handleInputChange('apellido', e.target.value)}
-              placeholder="Ingrese el apellido"
-            />
-
-            <TextField
-              fullWidth
-              label="Persona Responsable (Opcional)"
-              value={newTicket.persona_responsable}
-              onChange={(e) => handleInputChange('persona_responsable', e.target.value)}
-              placeholder="Ingrese el nombre del responsable"
-            />
-
-            <FormControl fullWidth>
-              <InputLabel>Área (Opcional)</InputLabel>
-              <Select
-                value={newTicket.area}
-                onChange={(e) => handleInputChange('area', e.target.value)}
-                label="Área (Opcional)"
-              >
-                <MenuItem value="">Ninguna</MenuItem>
-                {areas.map((area) => (
-                  <MenuItem key={area.id} value={area.id}>
-                    {area.nombre}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <TextField
-              fullWidth
-              label="Observaciones *"
-              value={newTicket.observaciones}
-              onChange={(e) => handleInputChange('observaciones', e.target.value)}
-              multiline
-              rows={4}
-              placeholder="Describa las observaciones del ticket"
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ p: 3, gap: 2 }}>
-          <Button
-            onClick={handleCloseCreateDialog}
-            variant="contained"
-            disabled={creating}
-            sx={{
-              bgcolor: '#4DD0E1',
-              color: 'black',
-              fontWeight: 'bold',
-              px: 4,
-              '&:hover': { bgcolor: '#26C6DA' },
-            }}
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleCreateTicket}
-            variant="contained"
-            disabled={creating}
-            sx={{
-              bgcolor: '#f44336',
-              color: 'white',
-              fontWeight: 'bold',
-              px: 4,
-              '&:hover': { bgcolor: '#d32f2f' },
-            }}
-          >
-            {creating ? 'Creando...' : 'Confirmar'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Dialog para confirmar completar ticket */}
+      {/* Dialogs */}
       <Dialog open={openConfirmDialog} onClose={handleCancelCompletar} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ bgcolor: '#003366', color: 'white', fontWeight: 'bold', textAlign: 'center' }}>
           " SISTEMA DE GESTIÓN DE LEGAJOS DEL PERSONAL "
@@ -492,113 +288,28 @@ const Tickets = () => {
           <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>
             ¿Estás seguro de que quieres completar el Ticket?
           </Typography>
-          <Typography variant="body2" color="textSecondary">
-            Esta acción marcará el ticket como completado y registrará la fecha de cierre
-          </Typography>
         </DialogContent>
         <DialogActions sx={{ justifyContent: 'center', p: 3, gap: 2 }}>
-          <Button
-            onClick={handleCancelCompletar}
-            variant="contained"
-            sx={{
-              bgcolor: '#4DD0E1',
-              color: 'black',
-              fontWeight: 'bold',
-              px: 4,
-              textTransform: 'uppercase',
-              '&:hover': { bgcolor: '#26C6DA' },
-            }}
-          >
+          <Button onClick={handleCancelCompletar} variant="contained" sx={{ bgcolor: '#4DD0E1', color: 'black', fontWeight: 'bold', px: 4 }}>
             Cancelar
           </Button>
-          <Button
-            onClick={handleConfirmCompletar}
-            variant="contained"
-            sx={{
-              bgcolor: '#f44336',
-              color: 'white',
-              fontWeight: 'bold',
-              px: 4,
-              textTransform: 'uppercase',
-              '&:hover': { bgcolor: '#d32f2f' },
-            }}
-          >
+          <Button onClick={handleConfirmCompletar} variant="contained" sx={{ bgcolor: '#f44336', color: 'white', fontWeight: 'bold', px: 4 }}>
             Confirmar
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Dialog de Éxito - Crear Ticket */}
-      <Dialog 
-        open={openSuccessCreateDialog} 
-        onClose={handleSuccessCreateDialogClose}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{ sx: { bgcolor: '#003d6e', borderRadius: 2 } }}
-      >
-        <DialogContent sx={{ p: 6, textAlign: 'center' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
-            <Box sx={{ width: 100, height: 100, borderRadius: 2, border: '5px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ConfirmationNumberIcon sx={{ fontSize: 60, color: 'white' }} />
-            </Box>
-          </Box>
-
-          <Typography variant="h5" sx={{ color: 'white', fontWeight: 500, mb: 4 }}>
-            ¡Ticket creado con Éxito!
-          </Typography>
-
-          <Button
-            onClick={handleSuccessCreateDialogClose}
-            sx={{
-              bgcolor: '#ff0000',
-              color: 'white',
-              fontWeight: 'bold',
-              py: 1.5,
-              px: 8,
-              textTransform: 'none',
-              borderRadius: 1,
-              fontSize: '1.1rem',
-              '&:hover': { bgcolor: '#cc0000' },
-            }}
-          >
-            Continuar
-          </Button>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog de Éxito - Completar Ticket */}
-      <Dialog 
-        open={openSuccessCompleteDialog} 
-        onClose={handleSuccessCompleteDialogClose}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{ sx: { bgcolor: '#003d6e', borderRadius: 2 } }}
-      >
+      <Dialog open={openSuccessCompleteDialog} onClose={handleSuccessCompleteDialogClose} maxWidth="sm" fullWidth PaperProps={{ sx: { bgcolor: '#003d6e' } }}>
         <DialogContent sx={{ p: 6, textAlign: 'center' }}>
           <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
             <Box sx={{ width: 100, height: 100, borderRadius: 2, border: '5px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <CheckCircleIcon sx={{ fontSize: 60, color: 'white' }} />
             </Box>
           </Box>
-
           <Typography variant="h5" sx={{ color: 'white', fontWeight: 500, mb: 4 }}>
             ¡Ticket completado con Éxito!
           </Typography>
-
-          <Button
-            onClick={handleSuccessCompleteDialogClose}
-            sx={{
-              bgcolor: '#ff0000',
-              color: 'white',
-              fontWeight: 'bold',
-              py: 1.5,
-              px: 8,
-              textTransform: 'none',
-              borderRadius: 1,
-              fontSize: '1.1rem',
-              '&:hover': { bgcolor: '#cc0000' },
-            }}
-          >
+          <Button onClick={handleSuccessCompleteDialogClose} sx={{ bgcolor: '#ff0000', color: 'white', fontWeight: 'bold', py: 1.5, px: 8 }}>
             Continuar
           </Button>
         </DialogContent>
@@ -607,4 +318,4 @@ const Tickets = () => {
   );
 };
 
-export default Tickets;
+export default VerTickets;

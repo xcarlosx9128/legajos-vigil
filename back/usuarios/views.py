@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Q
-from eventos.utils import registrar  # ← IMPORTAR
+from eventos.utils import registrar
 from .models import Usuario
 from .serializers import (
     UsuarioSerializer, UsuarioCreateSerializer, UsuarioUpdateSerializer,
@@ -15,11 +15,12 @@ from .permissions import IsAdmin
 class UsuarioViewSet(viewsets.ModelViewSet):
     """
     Vista para la gestión de usuarios del sistema.
+    ✅ Lectura: Todos los usuarios autenticados
+    ✅ Escritura: Solo ADMIN
     """
     queryset = Usuario.objects.all().order_by('-fecha_creacion')
     permission_classes = [IsAuthenticated]
 
-    # Selección automática del serializer según la acción
     def get_serializer_class(self):
         if self.action == 'create':
             return UsuarioCreateSerializer
@@ -29,13 +30,13 @@ class UsuarioViewSet(viewsets.ModelViewSet):
             return UsuarioListSerializer
         return UsuarioSerializer
 
-    # Control de permisos según la acción
     def get_permissions(self):
+        # ✅ Solo ADMIN puede crear/editar/eliminar
         if self.action in ['create', 'update', 'partial_update', 'destroy', 'toggle_active', 'reset_password']:
             return [IsAuthenticated(), IsAdmin()]
+        # ✅ Todos pueden leer (list, retrieve, me)
         return [IsAuthenticated()]
 
-    # Filtros avanzados
     def get_queryset(self):
         queryset = Usuario.objects.all().order_by('-fecha_creacion')
 
@@ -63,7 +64,6 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         nuevo_usuario = self.perform_create(serializer)
         
-        # ✅ REGISTRAR EVENTO: Creación de Usuario (ID 2)
         registrar(
             usuario_ejecutor=request.user,
             id_evento=2,
@@ -84,7 +84,6 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         
-        # ✅ REGISTRAR EVENTO: Modificación de Usuario (ID 1)
         registrar(
             usuario_ejecutor=request.user,
             id_evento=1,
@@ -96,14 +95,12 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         
         return Response(serializer.data)
 
-    # Bloquear eliminación de usuarios
     def destroy(self, request, *args, **kwargs):
         return Response(
             {'detail': 'No se permite eliminar usuarios. Use el método de deshabilitación.'},
             status=status.HTTP_405_METHOD_NOT_ALLOWED
         )
 
-    # Habilitar/Deshabilitar usuario (solo admin)
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdmin])
     def toggle_active(self, request, pk=None):
         usuario = self.get_object()
@@ -111,7 +108,6 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         usuario.is_active = not usuario.is_active
         usuario.save()
         
-        # ✅ REGISTRAR EVENTO: Desactivación de Usuario (ID 9) - solo si se desactiva
         if estaba_activo and not usuario.is_active:
             registrar(
                 usuario_ejecutor=request.user,
@@ -126,13 +122,11 @@ class UsuarioViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK
         )
 
-    # Información del usuario autenticado
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def me(self, request):
         serializer = UsuarioSerializer(request.user)
         return Response(serializer.data)
 
-    # Cambio de contraseña del usuario autenticado
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def change_password(self, request):
         serializer = ChangePasswordSerializer(data=request.data)
@@ -148,7 +142,6 @@ class UsuarioViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'Contraseña actualizada exitosamente.'})
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    # Resetear contraseña (solo admin)
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdmin])
     def reset_password(self, request, pk=None):
         usuario = self.get_object()

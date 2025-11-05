@@ -18,14 +18,13 @@ import {
 import {
   Menu as MenuIcon,
   Home as HomeIcon,
-  Person as PersonIcon,
   ExitToApp as ExitToAppIcon,
   People as PeopleIcon,
-  Business as BusinessIcon,
-  Assignment as AssignmentIcon,
-  Description as DescriptionIcon,
   Settings as SettingsIcon,
-  AccountTree as AccountTreeIcon,
+  PersonAdd as PersonAddIcon,
+  ConfirmationNumber as TicketIcon,
+  Visibility as VisibilityIcon,
+  Event as EventIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -57,41 +56,37 @@ const MainLayout = ({ children }) => {
 
   const getMenuItems = () => {
     const baseItems = [
-      { text: 'Inicio', icon: <HomeIcon />, path: '/dashboard' },
+      { text: 'Dashboard', icon: <HomeIcon />, path: '/dashboard' },
     ];
 
     switch (user?.rol) {
       case 'ADMIN':
         return [
           ...baseItems,
-          { text: 'Gestionar Usuarios', icon: <PeopleIcon />, path: '/admin/usuarios' },
-          { text: 'Configuración y Gestión Organizacional', icon: <AccountTreeIcon />, path: '/admin/configuracion-organizacional' }, // ⭐ NUEVO
-          { text: 'Gestionar Personal', icon: <PersonIcon />, path: '/gestionar-personal' },
-          { text: 'Tickets', icon: <AssignmentIcon />, path: '/tickets' },
+          { text: 'Gestión de Usuarios', icon: <PeopleIcon />, path: '/admin/usuarios' },
+          { text: 'Configuración Organizacional', icon: <SettingsIcon />, path: '/admin/configuracion-organizacional' },
         ];
       
       case 'SUBGERENTE':
         return [
           ...baseItems,
-          
+          { text: 'Ver Eventos', icon: <EventIcon />, path: '/eventos' },
           { text: 'Gestionar Personal', icon: <PeopleIcon />, path: '/gestionar-personal' },
-          { text: 'Tickets', icon: <AssignmentIcon />, path: '/tickets' },
-        ];
-      
-      case 'ENCARGADO':
-        return [
-          ...baseItems,
-          { text: 'Gestionar Personal', icon: <PeopleIcon />, path: '/gestionar-personal' },
-          { text: 'Tickets', icon: <AssignmentIcon />, path: '/tickets' },
-          { text: 'Configuración', icon: <SettingsIcon />, path: '/encargado/configuracion' },
         ];
       
       case 'COORDINADOR':
         return [
-          ...baseItems,
+          { text: 'Añadir Nuevo Personal', icon: <PersonAddIcon />, path: '/anadir-personal' },
           { text: 'Gestionar Personal', icon: <PeopleIcon />, path: '/gestionar-personal' },
-          { text: 'Tickets', icon: <AssignmentIcon />, path: '/tickets' },
-          { text: 'Configuración', icon: <SettingsIcon />, path: '/coordinador/configuracion' },
+          { text: 'Generar Ticket', icon: <TicketIcon />, path: '/tickets' },
+          { text: 'Ver Tickets', icon: <VisibilityIcon />, path: '/ver-tickets' },
+        ];
+      
+      case 'ENCARGADO':
+        return [
+          { text: 'Añadir Nuevo Personal', icon: <PersonAddIcon />, path: '/anadir-personal' },
+          { text: 'Gestionar Personal', icon: <PeopleIcon />, path: '/gestionar-personal' },
+          { text: 'Ver Tickets', icon: <VisibilityIcon />, path: '/ver-tickets' },
         ];
       
       default:
