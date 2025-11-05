@@ -204,7 +204,8 @@ class TipoDocumentoViewSet(viewsets.ModelViewSet):
     """
     ViewSet SIMPLIFICADO para tipos de documentos generales.
     
-    Ya NO hay filtros por sección - todos los tipos están disponibles para cualquier sección.
+    Ya NO hay filtros por sección ni orden - todos los tipos están disponibles para cualquier sección.
+    Ordenamiento por nombre alfabético.
     
     Endpoints:
     - GET /api/tipos-documento/ - Listar todos los tipos
@@ -218,9 +219,9 @@ class TipoDocumentoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = TipoDocumentoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['nombre', 'descripcion', 'codigo']
-    ordering_fields = ['orden', 'nombre']
-    ordering = ['orden', 'nombre']
+    search_fields = ['nombre', 'descripcion']
+    ordering_fields = ['nombre']
+    ordering = ['nombre']
     
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
@@ -240,7 +241,7 @@ class TipoDocumentoViewSet(viewsets.ModelViewSet):
         if search:
             queryset = queryset.filter(nombre__icontains=search)
         
-        return queryset.order_by('orden', 'nombre')
+        return queryset.order_by('nombre')
     
     @action(detail=False, methods=['get'])
     def activos(self, request):
@@ -248,7 +249,7 @@ class TipoDocumentoViewSet(viewsets.ModelViewSet):
         Devuelve solo los tipos de documentos activos.
         GET /api/tipos-documento/activos/
         """
-        tipos = TipoDocumento.objects.filter(activo=True).order_by('orden', 'nombre')
+        tipos = TipoDocumento.objects.filter(activo=True).order_by('nombre')
         serializer = TipoDocumentoSerializer(tipos, many=True)
         return Response(serializer.data)
     

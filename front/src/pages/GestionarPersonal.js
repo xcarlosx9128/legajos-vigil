@@ -72,7 +72,7 @@ const GestionarPersonal = () => {
     cargo_actual: '',
     regimen_actual_id: '',
     condicion_actual_id: '',
-    documento: null, // Cambiado de foto a documento
+    documento: null,
   });
   const [dniSearch, setDniSearch] = useState('');
   const [loadingDNI, setLoadingDNI] = useState(false);
@@ -89,7 +89,7 @@ const GestionarPersonal = () => {
       newPersonal.cargo_actual &&
       newPersonal.regimen_actual_id &&
       newPersonal.condicion_actual_id &&
-      newPersonal.documento !== null // Validar que haya un PDF
+      newPersonal.documento !== null
     );
   };
 
@@ -117,7 +117,6 @@ const GestionarPersonal = () => {
   const cargarDatos = async () => {
     setLoadingAreas(true);
     try {
-      // Función para obtener todos los registros paginados
       const obtenerTodos = async (endpoint) => {
         let allData = [];
         let url = endpoint;
@@ -159,7 +158,6 @@ const GestionarPersonal = () => {
     }
   };
 
-  // ✅ FUNCIÓN DE BÚSQUEDA Y FILTRADO CORREGIDA
   const aplicarFiltros = async () => {
     setLoading(true);
     setError('');
@@ -167,13 +165,11 @@ const GestionarPersonal = () => {
     try {
       const params = new URLSearchParams();
       
-      // ✅ BÚSQUEDA POR DNI O NOMBRE (en un solo campo)
       if (searchQuery.trim()) {
         params.append('search', searchQuery.trim());
         console.log('🔍 Buscando por DNI o Nombre:', searchQuery.trim());
       }
       
-      // ✅ FILTROS ADICIONALES
       if (filters.area) {
         params.append('area', filters.area);
         console.log('🔍 Filtro Área:', filters.area);
@@ -191,7 +187,6 @@ const GestionarPersonal = () => {
         console.log('🔍 Filtro Condición:', filters.condicion);
       }
 
-      // Si no hay ningún filtro, cargar TODO el personal
       if (!searchQuery.trim() && !filters.area && !filters.cargo && !filters.regimen && !filters.condicion) {
         console.log('📥 Sin filtros, cargando TODO el personal...');
         await cargarTodoElPersonal();
@@ -217,7 +212,6 @@ const GestionarPersonal = () => {
     }
   };
 
-  // ✅ LIMPIAR TODOS LOS FILTROS
   const limpiarFiltros = () => {
     setSearchQuery('');
     setFilters({
@@ -294,16 +288,15 @@ const GestionarPersonal = () => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validar que sea un PDF
       if (file.type === 'application/pdf') {
         setNewPersonal((prev) => ({
           ...prev,
           documento: file,
         }));
-        setError(''); // Limpiar errores previos
+        setError('');
       } else {
         setError('Solo se permiten archivos PDF');
-        e.target.value = ''; // Limpiar el input
+        e.target.value = '';
       }
     }
   };
@@ -312,7 +305,6 @@ const GestionarPersonal = () => {
     console.log('🟢 Iniciando proceso de agregar personal...');
     console.log('📋 Datos a enviar:', newPersonal);
 
-    // Validaciones
     if (!newPersonal.dni || newPersonal.dni.length !== 8) {
       setError('El DNI debe tener 8 dígitos');
       return;
@@ -361,7 +353,6 @@ const GestionarPersonal = () => {
       formData.append('regimen_actual_id', newPersonal.regimen_actual_id);
       formData.append('condicion_actual_id', newPersonal.condicion_actual_id);
       
-      // Agregar documento PDF
       if (newPersonal.documento) {
         formData.append('documento', newPersonal.documento);
       }
@@ -398,20 +389,21 @@ const GestionarPersonal = () => {
     setExpandedRow(expandedRow === personaId ? null : personaId);
   };
 
+  // ⭐ FUNCIONES DE NAVEGACIÓN ACTUALIZADAS
   const handleVisualizarLegajo = (persona) => {
-    navigate(`/gestionar-personal/${persona.id}/legajo`);
+    navigate(`/personal/${persona.id}/visualizar-legajo`);
   };
 
   const handleEditarLegajo = (persona) => {
-    navigate(`/gestionar-personal/${persona.id}/legajo`);
+    navigate(`/personal/${persona.id}/editar-legajo`);
   };
 
   const handleVisualizarEscalafon = (persona) => {
-    navigate(`/gestionar-personal/${persona.id}/escalafon`);
+    navigate(`/personal/${persona.id}/visualizar-escalafon`);
   };
 
   const handleEditarEscalafon = (persona) => {
-    navigate(`/gestionar-personal/${persona.id}/escalafon`);
+    navigate(`/personal/${persona.id}/editar-escalafon`);
   };
 
   return (
@@ -440,7 +432,6 @@ const GestionarPersonal = () => {
       {/* Filtros */}
       <Paper elevation={2} sx={{ p: 2.5, mb: 3 }}>
         <Grid container spacing={1.5} alignItems="center">
-          {/* Búsqueda por DNI o Nombre */}
           <Grid item xs={12} md={3.5}>
             <TextField
               fullWidth
@@ -460,7 +451,6 @@ const GestionarPersonal = () => {
             />
           </Grid>
 
-          {/* Filtro por Área */}
           <Grid item xs={6} md={1.75}>
             <FormControl fullWidth size="small">
               <InputLabel>Área</InputLabel>
@@ -480,7 +470,6 @@ const GestionarPersonal = () => {
             </FormControl>
           </Grid>
 
-          {/* Filtro por Cargo */}
           <Grid item xs={6} md={1.75}>
             <FormControl fullWidth size="small">
               <InputLabel>Cargo</InputLabel>
@@ -500,7 +489,6 @@ const GestionarPersonal = () => {
             </FormControl>
           </Grid>
 
-          {/* Filtro por Régimen */}
           <Grid item xs={6} md={1.75}>
             <FormControl fullWidth size="small">
               <InputLabel>Régimen</InputLabel>
@@ -520,7 +508,6 @@ const GestionarPersonal = () => {
             </FormControl>
           </Grid>
 
-          {/* Filtro por Condición */}
           <Grid item xs={6} md={1.75}>
             <FormControl fullWidth size="small">
               <InputLabel>Condición</InputLabel>
@@ -540,7 +527,6 @@ const GestionarPersonal = () => {
             </FormControl>
           </Grid>
 
-          {/* Botones de Acción */}
           <Grid item xs={12} md={1.5}>
             <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
               <Button
@@ -575,21 +561,18 @@ const GestionarPersonal = () => {
         </Grid>
       </Paper>
 
-      {/* Mensajes de Error */}
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
           {error}
         </Alert>
       )}
 
-      {/* Loading */}
       {loading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
           <CircularProgress />
         </Box>
       )}
 
-      {/* Tabla de Resultados */}
       {!loading && personal.length > 0 && (
         <TableContainer component={Paper} elevation={2}>
           <Table>
@@ -610,7 +593,6 @@ const GestionarPersonal = () => {
                   <TableRow 
                     hover 
                     onClick={(e) => {
-                      // No expandir si se hace clic en un botón
                       if (e.target.closest('button')) return;
                       handleToggleRow(persona.id);
                     }}
@@ -683,7 +665,6 @@ const GestionarPersonal = () => {
                     </TableCell>
                   </TableRow>
 
-                  {/* Fila expandida con opciones de edición */}
                   {expandedRow === persona.id && (
                     <TableRow>
                       <TableCell colSpan={7} sx={{ py: 2, bgcolor: '#f9f9f9', borderBottom: '2px solid #003366' }}>
@@ -731,7 +712,6 @@ const GestionarPersonal = () => {
         </TableContainer>
       )}
 
-      {/* Sin resultados */}
       {!loading && personal.length === 0 && !error && (
         <Paper elevation={2} sx={{ p: 4, textAlign: 'center' }}>
           <Typography variant="body1" color="textSecondary">
@@ -753,7 +733,6 @@ const GestionarPersonal = () => {
           )}
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-            {/* DNI con botón Buscar */}
             <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
                 fullWidth
@@ -791,7 +770,6 @@ const GestionarPersonal = () => {
               onChange={(e) => handleInputChange('nombres', e.target.value)}
             />
 
-            {/* Apellidos en la misma fila */}
             <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
                 fullWidth
@@ -810,7 +788,6 @@ const GestionarPersonal = () => {
               />
             </Box>
 
-            {/* Componente SearchableSelect para Área */}
             <SearchableSelect
               label="Área:"
               value={newPersonal.area_actual_id}
@@ -820,7 +797,6 @@ const GestionarPersonal = () => {
               disabled={loadingAreas}
             />
 
-            {/* Componente SearchableSelect para Cargo */}
             <SearchableSelect
               label="Cargo:"
               value={newPersonal.cargo_actual}
@@ -830,7 +806,6 @@ const GestionarPersonal = () => {
               disabled={loadingAreas}
             />
 
-            {/* Componente SearchableSelect para Régimen */}
             <SearchableSelect
               label="Régimen:"
               value={newPersonal.regimen_actual_id}
@@ -840,7 +815,6 @@ const GestionarPersonal = () => {
               disabled={loadingAreas}
             />
 
-            {/* Componente SearchableSelect para Condición Laboral */}
             <SearchableSelect
               label="Condición Laboral:"
               value={newPersonal.condicion_actual_id}

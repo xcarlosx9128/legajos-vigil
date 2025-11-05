@@ -125,8 +125,8 @@ class TipoDocumento(models.Model):
     Tipos de documento GENERALES - Versión ultra simplificada.
     
     Cualquier tipo puede agregarse a cualquier sección del legajo.
-    Ya NO tiene: seccion, numero, es_obligatorio
-    Solo tiene: nombre, descripcion, codigo, activo, orden
+    Ya NO tiene: seccion, numero, es_obligatorio, codigo, orden
+    Solo tiene: nombre, descripcion, activo
     
     Ejemplos:
     - Memorándum
@@ -151,21 +151,9 @@ class TipoDocumento(models.Model):
         help_text="Descripción opcional del tipo de documento"
     )
     
-    codigo = models.CharField(
-        max_length=20,
-        blank=True,
-        null=True,
-        help_text="Código opcional para identificar el tipo (ej: MEM, SOL, OF)"
-    )
-    
     activo = models.BooleanField(
         default=True,
         help_text="Si está desactivado, no aparecerá en los selectores"
-    )
-    
-    orden = models.IntegerField(
-        default=0,
-        help_text="Orden de visualización en los selectores (menor número = primero)"
     )
     
     fecha_creacion = models.DateTimeField(
@@ -182,20 +170,11 @@ class TipoDocumento(models.Model):
         db_table = 'tipos_documento'
         verbose_name = 'Tipo de Documento'
         verbose_name_plural = 'Tipos de Documento'
-        ordering = ['orden', 'nombre']
+        ordering = ['nombre']
         indexes = [
             models.Index(fields=['activo']),
             models.Index(fields=['nombre']),
-            models.Index(fields=['orden']),
         ]
     
     def __str__(self):
-        if self.codigo:
-            return f"{self.codigo} - {self.nombre}"
-        return self.nombre
-    
-    def get_nombre_completo(self):
-        """Retorna el nombre completo con código si existe"""
-        if self.codigo:
-            return f"{self.codigo} - {self.nombre}"
         return self.nombre

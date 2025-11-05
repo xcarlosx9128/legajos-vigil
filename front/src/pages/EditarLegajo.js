@@ -1,4 +1,4 @@
-// EditarLegajo.jsx - CON SEARCHABLE SELECT
+// EditarLegajo.jsx - ACTUALIZADO CON CAMPO SECCION
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -25,7 +25,6 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Chip,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -36,7 +35,7 @@ import {
   ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
 import api from '../services/api';
-import SearchableSelect from '../components/SearchableSelect'; // ⭐ IMPORTAR EL COMPONENTE
+import SearchableSelect from '../components/SearchableSelect';
 
 const EditarLegajo = () => {
   const { id } = useParams();
@@ -63,7 +62,7 @@ const EditarLegajo = () => {
     cargarDatos();
   }, [id]);
 
-  // Cargar TODOS los tipos de documento recursivamente
+  // Cargar TODOS los tipos de documento activos recursivamente
   const cargarTodosTipos = async () => {
     let todosLosTipos = [];
     let page = 1;
@@ -72,14 +71,13 @@ const EditarLegajo = () => {
     try {
       while (hasMore) {
         console.log(`📝 Cargando página ${page} de tipos de documento...`);
-        const response = await api.get(`/tipos-documento/?page=${page}&page_size=100`);
+        const response = await api.get(`/tipos-documento/activos/?page=${page}&page_size=100`);
         
         const resultados = response.data.results || response.data;
         const tiposArray = Array.isArray(resultados) ? resultados : [];
         
         todosLosTipos = [...todosLosTipos, ...tiposArray];
         
-        // Verificar si hay más páginas
         if (response.data.next) {
           page++;
         } else {
@@ -87,7 +85,7 @@ const EditarLegajo = () => {
         }
       }
       
-      console.log(`✅ Total de tipos cargados: ${todosLosTipos.length}`);
+      console.log(`✅ Total de tipos activos cargados: ${todosLosTipos.length}`);
       return todosLosTipos;
     } catch (err) {
       console.error('❌ Error cargando tipos:', err);
@@ -99,21 +97,19 @@ const EditarLegajo = () => {
     try {
       console.log('🔄 Cargando datos del personal ID:', id);
       
-      // Cargar tipos de documento PRIMERO con la función recursiva
+      // Cargar tipos de documento PRIMERO
       const todosLosTipos = await cargarTodosTipos();
       setTiposDocumento(todosLosTipos);
       
-      // Luego cargar el resto
+      // Cargar solo secciones activas
       const [personalRes, documentosRes, seccionesRes] = await Promise.all([
         api.get(`/personal/${id}/`),
         api.get(`/legajos/?personal=${id}`),
-        api.get('/secciones-legajo/'),
+        api.get('/secciones-legajo/activas/'),
       ]);
       
       setPersonal(personalRes.data);
       console.log('👤 Personal cargado:', personalRes.data);
-      console.log('👔 Cargo actual:', personalRes.data.cargo_actual);
-      console.log('👔 Cargo detalle:', personalRes.data.cargo_actual_detalle);
       
       const docs = documentosRes.data.results || documentosRes.data;
       const documentosArray = Array.isArray(docs) ? docs : [];
@@ -123,7 +119,7 @@ const EditarLegajo = () => {
       const secs = seccionesRes.data.results || seccionesRes.data;
       const seccionesArray = Array.isArray(secs) ? secs : [];
       setSecciones(seccionesArray);
-      console.log('📋 Secciones cargadas:', seccionesArray.length);
+      console.log('📋 Secciones activas cargadas:', seccionesArray.length);
       
     } catch (err) {
       console.error('❌ Error:', err);
@@ -144,7 +140,6 @@ const EditarLegajo = () => {
         descripcion: '',
         archivo: null,
       });
-      // Mostrar todos los tipos sin filtrar
       setTiposFiltrados(tiposDocumento);
       console.log(`📝 Total de tipos disponibles:`, tiposDocumento.length);
     } else {
@@ -180,7 +175,6 @@ const EditarLegajo = () => {
       tipo_documento: '',
     });
     
-    // Mostrar todos los tipos sin filtrar
     setTiposFiltrados(tiposDocumento);
     console.log('📝 Total de tipos disponibles:', tiposDocumento.length);
   };
@@ -221,9 +215,17 @@ const EditarLegajo = () => {
     try {
       const formData = new FormData();
       formData.append('personal', id);
+      formData.append('seccion', nuevoDocumento.seccion);          // ⭐ AGREGADO
       formData.append('tipo_documento', nuevoDocumento.tipo_documento);
       formData.append('descripcion', nuevoDocumento.descripcion || '');
       formData.append('archivo', nuevoDocumento.archivo);
+
+      console.log('📤 Enviando documento:');
+      console.log('  - Personal ID:', id);
+      console.log('  - Sección ID:', nuevoDocumento.seccion);
+      console.log('  - Tipo Documento ID:', nuevoDocumento.tipo_documento);
+      console.log('  - Descripción:', nuevoDocumento.descripcion);
+      console.log('  - Archivo:', nuevoDocumento.archivo.name);
 
       await api.post('/legajos/', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -234,6 +236,7 @@ const EditarLegajo = () => {
       cargarDatos();
     } catch (err) {
       console.error('Error al agregar documento:', err);
+      console.error('Respuesta del servidor:', err.response?.data);
       alert('Error al agregar documento: ' + (err.response?.data?.detail || err.message));
     }
   };
@@ -267,7 +270,8 @@ const EditarLegajo = () => {
     if (!Array.isArray(documentos)) {
       return [];
     }
-    return documentos.filter(doc => doc.seccion === seccionId || doc.tipo_documento_seccion === seccionId);
+    // ⭐ ACTUALIZADO: Usar el campo seccion del modelo Legajo
+    return documentos.filter(doc => doc.seccion === seccionId || doc.seccion_id === seccionId);
   };
 
   const formatFecha = (fecha) => {
@@ -282,13 +286,6 @@ const EditarLegajo = () => {
     });
   };
 
-  const getSeccionNombre = () => {
-    if (!seccionSeleccionada) return '';
-    const seccion = secciones.find(s => s.id === seccionSeleccionada);
-    return seccion ? `${seccion.numero}. ${seccion.nombre}` : '';
-  };
-
-  // Obtener el nombre completo del cargo
   const getCargoCompleto = () => {
     if (personal?.cargo_actual_detalle?.nombre) {
       return personal.cargo_actual_detalle.nombre;
@@ -331,49 +328,37 @@ const EditarLegajo = () => {
             </Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, mt: 2 }}>
               <Box>
-                <Typography variant="caption" color="textSecondary">
-                  DNI
-                </Typography>
+                <Typography variant="caption" color="textSecondary">DNI</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                   {personal?.dni || '-'}
                 </Typography>
               </Box>
               <Box>
-                <Typography variant="caption" color="textSecondary">
-                  Área
-                </Typography>
+                <Typography variant="caption" color="textSecondary">Área</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                   {personal?.area_actual_detalle?.nombre || personal?.area_nombre || '-'}
                 </Typography>
               </Box>
               <Box>
-                <Typography variant="caption" color="textSecondary">
-                  Cargo
-                </Typography>
+                <Typography variant="caption" color="textSecondary">Cargo</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                   {getCargoCompleto()}
                 </Typography>
               </Box>
               <Box>
-                <Typography variant="caption" color="textSecondary">
-                  Régimen
-                </Typography>
+                <Typography variant="caption" color="textSecondary">Régimen</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                   {personal?.regimen_actual_detalle?.nombre || personal?.regimen_nombre || '-'}
                 </Typography>
               </Box>
               <Box>
-                <Typography variant="caption" color="textSecondary">
-                  Condición Laboral
-                </Typography>
+                <Typography variant="caption" color="textSecondary">Condición Laboral</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                   {personal?.condicion_actual_detalle?.nombre || personal?.condicion_nombre || '-'}
                 </Typography>
               </Box>
               <Box>
-                <Typography variant="caption" color="textSecondary">
-                  Fecha de Ingreso
-                </Typography>
+                <Typography variant="caption" color="textSecondary">Fecha de Ingreso</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                   {personal?.fecha_ingreso ? new Date(personal.fecha_ingreso).toLocaleDateString('es-PE') : '-'}
                 </Typography>
@@ -399,162 +384,130 @@ const EditarLegajo = () => {
         </Button>
       </Box>
 
-      {/* Acordeones con las 9 secciones del legajo */}
-      {secciones.map((seccion) => {
-        const docs = documentosPorSeccion(seccion.id);
-        
-        const totalDocs = seccion.numero === 9 && personal?.documento ? docs.length + 1 : docs.length;
-        
-        return (
-          <Accordion key={seccion.id} defaultExpanded={false}>
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              sx={{
-                bgcolor: seccion.color || '#1976d2',
-                color: 'white',
-                '&:hover': { bgcolor: seccion.color ? `${seccion.color}dd` : '#1565c0' }
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-                <Typography variant="h6" sx={{ fontWeight: 'bold', flexGrow: 1 }}>
-                  {seccion.numero}. {seccion.nombre} ({totalDocs})
-                </Typography>
-              </Box>
-            </AccordionSummary>
-            
-            <AccordionDetails sx={{ p: 0 }}>
-              {seccion.numero === 9 && personal?.documento && (
-                <Box sx={{ p: 3, bgcolor: '#E3F2FD', borderBottom: '3px solid #2196F3' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Box>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#1976d2', mb: 0.5 }}>
-                        📄 Documento Inicial del Personal
-                      </Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        Tipo: 9.3 - Otros | Cargado al registrar al trabajador
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <IconButton
-                        color="primary"
-                        onClick={() => window.open(personal.documento, '_blank')}
-                        title="Visualizar"
-                      >
-                        <VisibilityIcon />
-                      </IconButton>
-                      <IconButton
-                        color="info"
-                        onClick={() => window.open(personal.documento, '_blank')}
-                        title="Descargar"
-                      >
-                        <DownloadIcon />
-                      </IconButton>
+      {/* Acordeones con secciones activas */}
+      {secciones.length > 0 ? (
+        secciones.map((seccion) => {
+          const docs = documentosPorSeccion(seccion.id);
+          const totalDocs = seccion.orden === 9 && personal?.documento ? docs.length + 1 : docs.length;
+          
+          return (
+            <Accordion key={seccion.id} defaultExpanded={false}>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                sx={{
+                  bgcolor: seccion.color || '#1976d2',
+                  color: 'white',
+                  '&:hover': { bgcolor: seccion.color ? `${seccion.color}dd` : '#1565c0' }
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', flexGrow: 1 }}>
+                    {seccion.orden}. {seccion.nombre} ({totalDocs})
+                  </Typography>
+                </Box>
+              </AccordionSummary>
+              
+              <AccordionDetails sx={{ p: 0 }}>
+                {seccion.orden === 9 && personal?.documento && (
+                  <Box sx={{ p: 3, bgcolor: '#E3F2FD', borderBottom: '3px solid #2196F3' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Box>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#1976d2', mb: 0.5 }}>
+                          📄 Documento Inicial del Personal
+                        </Typography>
+                        <Typography variant="caption" color="textSecondary">
+                          Cargado al registrar al trabajador
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <IconButton color="primary" onClick={() => window.open(personal.documento, '_blank')} title="Visualizar">
+                          <VisibilityIcon />
+                        </IconButton>
+                        <IconButton color="info" onClick={() => window.open(personal.documento, '_blank')} title="Descargar">
+                          <DownloadIcon />
+                        </IconButton>
+                      </Box>
                     </Box>
                   </Box>
-                </Box>
-              )}
-              
-              {docs.length > 0 ? (
-                <Table>
-                  <TableHead>
-                    <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-                      <TableCell sx={{ fontWeight: 'bold', width: '50px' }}>N°</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>TIPO</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>FECHA</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>DESCRIPCIÓN</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>ACCIONES</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {docs.map((doc, index) => (
-                      <TableRow key={doc.id} hover>
-                        <TableCell>{index + 1}</TableCell>
-                        <TableCell>
-                          <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#1976d2' }}>
-                            {doc.tipo_documento_codigo || doc.codigo}
-                          </Typography>
-                          <Typography variant="caption" color="textSecondary">
-                            {doc.tipo_documento_nombre || doc.nombre}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {formatFecha(doc.fecha_documento)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {doc.descripcion || 'Sin descripción'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
-                            <IconButton
-                              size="small"
-                              color="primary"
-                              onClick={() => handleVisualizarDocumento(doc)}
-                              title="Visualizar"
-                            >
-                              <VisibilityIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              color="info"
-                              onClick={() => handleDescargarDocumento(doc)}
-                              title="Descargar"
-                            >
-                              <DownloadIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => handleEliminarDocumento(doc.id)}
-                              title="Eliminar"
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
-                        </TableCell>
+                )}
+                
+                {docs.length > 0 ? (
+                  <Table>
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                        <TableCell sx={{ fontWeight: 'bold', width: '50px' }}>N°</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>TIPO</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>FECHA</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>DESCRIPCIÓN</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>ACCIONES</TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <Box sx={{ p: 3, textAlign: 'center' }}>
-                  {!(seccion.numero === 9 && personal?.documento) && (
-                    <>
-                      <Typography color="textSecondary" sx={{ mb: 2 }}>
-                        No hay documentos en esta sección
-                      </Typography>
-                      <Button
-                        variant="outlined"
-                        startIcon={<AddIcon />}
-                        onClick={() => handleOpenAddDialog(seccion)}
-                        size="small"
-                      >
-                        Agregar documento aquí
+                    </TableHead>
+                    <TableBody>
+                      {docs.map((doc, index) => (
+                        <TableRow key={doc.id} hover>
+                          <TableCell>{index + 1}</TableCell>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#1976d2' }}>
+                              {doc.tipo_documento_nombre || doc.nombre}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {formatFecha(doc.fecha_registro)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {doc.descripcion || 'Sin descripción'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+                              <IconButton size="small" color="primary" onClick={() => handleVisualizarDocumento(doc)} title="Visualizar">
+                                <VisibilityIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton size="small" color="info" onClick={() => handleDescargarDocumento(doc)} title="Descargar">
+                                <DownloadIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton size="small" color="error" onClick={() => handleEliminarDocumento(doc.id)} title="Eliminar">
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <Box sx={{ p: 3, textAlign: 'center' }}>
+                    {!(seccion.orden === 9 && personal?.documento) && (
+                      <>
+                        <Typography color="textSecondary" sx={{ mb: 2 }}>
+                          No hay documentos en esta sección
+                        </Typography>
+                        <Button variant="outlined" startIcon={<AddIcon />} onClick={() => handleOpenAddDialog(seccion)} size="small">
+                          Agregar documento aquí
+                        </Button>
+                      </>
+                    )}
+                    {seccion.orden === 9 && personal?.documento && (
+                      <Button variant="outlined" startIcon={<AddIcon />} onClick={() => handleOpenAddDialog(seccion)} size="small">
+                        Agregar más documentos
                       </Button>
-                    </>
-                  )}
-                  
-                  {seccion.numero === 9 && personal?.documento && (
-                    <Button
-                      variant="outlined"
-                      startIcon={<AddIcon />}
-                      onClick={() => handleOpenAddDialog(seccion)}
-                      size="small"
-                    >
-                      Agregar más documentos
-                    </Button>
-                  )}
-                </Box>
-              )}
-            </AccordionDetails>
-          </Accordion>
-        );
-      })}
+                    )}
+                  </Box>
+                )}
+              </AccordionDetails>
+            </Accordion>
+          );
+        })
+      ) : (
+        <Paper sx={{ p: 4, textAlign: 'center' }}>
+          <Typography color="textSecondary">No hay secciones activas disponibles</Typography>
+        </Paper>
+      )}
 
-      {/* ⭐ DIALOG MEJORADO CON SEARCHABLE SELECT */}
+      {/* Dialog Agregar Documento */}
       <Dialog open={openAddDialog} onClose={handleCloseAddDialog} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ bgcolor: '#003366', color: 'white' }}>
           Agregar Documento
@@ -573,24 +526,15 @@ const EditarLegajo = () => {
                 {secciones.map((seccion) => (
                   <MenuItem key={seccion.id} value={seccion.id}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box 
-                        sx={{ 
-                          width: 20, 
-                          height: 20, 
-                          bgcolor: seccion.color, 
-                          borderRadius: '4px' 
-                        }} 
-                      />
-                      <Typography>
-                        {seccion.numero}. {seccion.nombre}
-                      </Typography>
+                      <Box sx={{ width: 20, height: 20, bgcolor: seccion.color, borderRadius: '4px' }} />
+                      <Typography>{seccion.orden}. {seccion.nombre}</Typography>
                     </Box>
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
 
-            {/* ⭐ SEARCHABLE SELECT PARA TIPO DE DOCUMENTO */}
+            {/* Searchable Select para Tipo de Documento */}
             {seccionSeleccionada && (
               <>
                 <SearchableSelect
@@ -603,9 +547,8 @@ const EditarLegajo = () => {
                   disabled={!seccionSeleccionada}
                 />
                 
-                {/* Mostrar contador de tipos */}
                 <Typography variant="caption" color="textSecondary" sx={{ textAlign: 'center', mt: -2 }}>
-                  📝 {tiposFiltrados.length} tipos de documento disponibles
+                  📝 {tiposFiltrados.length} tipos de documento activos disponibles
                 </Typography>
               </>
             )}
@@ -639,12 +582,7 @@ const EditarLegajo = () => {
                 ) : (
                   'SELECCIONAR ARCHIVO PDF'
                 )}
-                <input
-                  type="file"
-                  hidden
-                  onChange={handleFileChange}
-                  accept=".pdf"
-                />
+                <input type="file" hidden onChange={handleFileChange} accept=".pdf" />
               </Button>
               <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block', textAlign: 'center' }}>
                 Solo archivos PDF. Tamaño máximo: 10MB
@@ -653,9 +591,7 @@ const EditarLegajo = () => {
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={handleCloseAddDialog} color="inherit">
-            Cancelar
-          </Button>
+          <Button onClick={handleCloseAddDialog} color="inherit">Cancelar</Button>
           <Button 
             onClick={handleAgregarDocumento} 
             disabled={!nuevoDocumento.seccion || !nuevoDocumento.tipo_documento || !nuevoDocumento.archivo}

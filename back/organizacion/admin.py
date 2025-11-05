@@ -130,19 +130,19 @@ class TipoDocumentoAdmin(admin.ModelAdmin):
     """
     Admin SIMPLIFICADO para tipos de documentos generales.
     
-    Ya NO tiene: seccion, numero, es_obligatorio
-    Solo tiene: nombre, codigo, descripcion, activo, orden
+    Ya NO tiene: seccion, numero, es_obligatorio, codigo, orden
+    Solo tiene: nombre, descripcion, activo
     """
-    list_display = ['nombre', 'codigo', 'orden', 'activo', 'fecha_creacion']
+    list_display = ['nombre', 'activo', 'fecha_creacion']
     list_filter = ['activo', 'fecha_creacion']
-    search_fields = ['nombre', 'codigo', 'descripcion']
-    ordering = ['orden', 'nombre']
-    list_editable = ['orden', 'activo']
+    search_fields = ['nombre', 'descripcion']
+    ordering = ['nombre']
+    list_editable = ['activo']
     list_display_links = ['nombre']
     
     fieldsets = (
         ('Información Básica', {
-            'fields': ('nombre', 'codigo', 'orden')
+            'fields': ('nombre',)
         }),
         ('Detalles', {
             'fields': ('descripcion', 'activo')

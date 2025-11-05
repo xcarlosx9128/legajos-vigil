@@ -17,8 +17,8 @@ class PersonalSerializer(serializers.ModelSerializer):
             'nombre_completo', 'fecha_nacimiento', 'sexo', 'telefono', 'email',
             'direccion', 'area_actual', 'area_actual_detalle', 'regimen_actual',
             'regimen_actual_detalle', 'condicion_actual', 'condicion_actual_detalle',
-            'cargo_actual', 'fecha_ingreso', 'activo', 'observaciones', 'documento',
-            'fecha_creacion', 'fecha_actualizacion'
+            'cargo_actual', 'fecha_ingreso', 'activo', 
+            'observaciones', 'documento', 'fecha_creacion', 'fecha_actualizacion'
         ]
         read_only_fields = ['id', 'fecha_creacion', 'fecha_actualizacion']
 
@@ -28,33 +28,16 @@ class PersonalListSerializer(serializers.ModelSerializer):
     area_nombre = serializers.CharField(source='area_actual.nombre', read_only=True)
     regimen_nombre = serializers.CharField(source='regimen_actual.nombre', read_only=True)
     condicion_nombre = serializers.CharField(source='condicion_actual.nombre', read_only=True)
-    cargo_nombre = serializers.SerializerMethodField()
     
     class Meta:
         model = Personal
         fields = [
             'id', 'dni', 'nombre_completo', 'area_nombre', 
-            'regimen_nombre', 'condicion_nombre', 'cargo_nombre', 'activo'
+            'regimen_nombre', 'condicion_nombre', 'cargo_actual', 'activo'
         ]
-    
-    def get_cargo_nombre(self, obj):
-        if obj.cargo_actual:
-            try:
-                from organizacion.models import Cargo
-                cargo = Cargo.objects.get(id=obj.cargo_actual)
-                return cargo.nombre
-            except (Cargo.DoesNotExist, ValueError):
-                return obj.cargo_actual
-        return None
 
 
 class PersonalCreateSerializer(serializers.ModelSerializer):
-    # Permitir tanto area_actual como area_actual_id
-    area_actual_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
-    regimen_actual_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
-    condicion_actual_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
-    
-    # Documento es obligatorio
     documento = serializers.FileField(required=True)
     
     class Meta:
@@ -62,31 +45,17 @@ class PersonalCreateSerializer(serializers.ModelSerializer):
         fields = [
             'dni', 'nombres', 'apellido_paterno', 'apellido_materno',
             'fecha_nacimiento', 'sexo', 'telefono', 'email', 'direccion',
-            'area_actual', 'area_actual_id', 'regimen_actual', 'regimen_actual_id', 
-            'condicion_actual', 'condicion_actual_id', 'cargo_actual',
+            'area_actual', 'regimen_actual', 'condicion_actual', 'cargo_actual',
             'fecha_ingreso', 'observaciones', 'documento'
         ]
     
     def validate_documento(self, value):
-        """Validar que el archivo sea un PDF"""
         if value:
             if not value.name.lower().endswith('.pdf'):
                 raise serializers.ValidationError("Solo se permiten archivos PDF")
-            # Validar tamaño (máximo 10MB)
             if value.size > 10 * 1024 * 1024:
                 raise serializers.ValidationError("El archivo no puede superar los 10MB")
         return value
-    
-    def create(self, validated_data):
-        # Manejar los campos _id si vienen
-        if 'area_actual_id' in validated_data:
-            validated_data['area_actual_id'] = validated_data.pop('area_actual_id')
-        if 'regimen_actual_id' in validated_data:
-            validated_data['regimen_actual_id'] = validated_data.pop('regimen_actual_id')
-        if 'condicion_actual_id' in validated_data:
-            validated_data['condicion_actual_id'] = validated_data.pop('condicion_actual_id')
-        
-        return super().create(validated_data)
 
 
 class EscalafonSerializer(serializers.ModelSerializer):
@@ -117,29 +86,30 @@ class EscalafonCreateSerializer(serializers.ModelSerializer):
 
 
 # ============================================
-# SERIALIZERS ACTUALIZADOS PARA LEGAJO
+# SERIALIZERS LEGAJO ULTRA SIMPLIFICADOS
 # ============================================
 
 class LegajoSerializer(serializers.ModelSerializer):
     """
-    Serializer completo para lectura de documentos del legajo
-    ⭐ ACTUALIZADO CON CAMPOS DE SECCIÓN
+    Serializer para lectura de documentos del legajo.
+    ⭐ SOLO UNA FECHA: fecha_creacion
     """
     personal_nombre = serializers.CharField(source='personal.nombre_completo', read_only=True)
     
+    # Campos de la sección
+    seccion_id = serializers.IntegerField(source='seccion.id', read_only=True)
+    seccion_nombre = serializers.CharField(source='seccion.nombre', read_only=True)
+    seccion_orden = serializers.IntegerField(source='seccion.orden', read_only=True)
+    seccion_color = serializers.CharField(source='seccion.color', read_only=True)
+    
     # Campos del tipo de documento
     tipo_documento_id = serializers.IntegerField(source='tipo_documento.id', read_only=True)
-    tipo_documento_codigo = serializers.CharField(source='tipo_documento.codigo', read_only=True)  # ⭐ NUEVO
     tipo_documento_nombre = serializers.CharField(source='tipo_documento.nombre', read_only=True)
-    tipo_documento_numero = serializers.IntegerField(source='tipo_documento.numero', read_only=True)
     
-    # ⭐ CAMPOS DE LA SECCIÓN (NUEVOS)
-    tipo_documento_seccion = serializers.IntegerField(source='tipo_documento.seccion.id', read_only=True)
-    seccion_numero = serializers.IntegerField(source='tipo_documento.seccion.numero', read_only=True)
-    seccion_nombre = serializers.CharField(source='tipo_documento.seccion.nombre', read_only=True)
-    seccion_color = serializers.CharField(source='tipo_documento.seccion.color', read_only=True)
-    
+    # Usuario que registró
     registrado_por_nombre = serializers.CharField(source='registrado_por.nombre_completo', read_only=True)
+    
+    # URL del archivo
     archivo_url = serializers.SerializerMethodField()
     
     class Meta:
@@ -148,26 +118,22 @@ class LegajoSerializer(serializers.ModelSerializer):
             'id',
             'personal',
             'personal_nombre',
+            'seccion',
+            'seccion_id',
+            'seccion_nombre',
+            'seccion_orden',
+            'seccion_color',
             'tipo_documento',
             'tipo_documento_id',
-            'tipo_documento_codigo',          # ⭐ NUEVO
             'tipo_documento_nombre',
-            'tipo_documento_numero',
-            'tipo_documento_seccion',         # ⭐ NUEVO
-            'seccion_numero',                 # ⭐ NUEVO
-            'seccion_nombre',                 # ⭐ NUEVO
-            'seccion_color',                  # ⭐ NUEVO
-            'fecha_documento',                # ⭐ NUEVO (fecha del documento)
             'descripcion',
             'archivo',
             'archivo_url',
             'registrado_por',
             'registrado_por_nombre',
-            'fecha_registro',                 # Fecha de registro en sistema
-            'fecha_creacion',
-            'fecha_modificacion'
+            'fecha_creacion',  # ⭐ SOLO ESTA FECHA
         ]
-        read_only_fields = ['id', 'fecha_registro', 'registrado_por', 'fecha_creacion', 'fecha_modificacion']
+        read_only_fields = ['id', 'fecha_creacion', 'registrado_por']
     
     def get_archivo_url(self, obj):
         if obj.archivo:
@@ -180,22 +146,21 @@ class LegajoSerializer(serializers.ModelSerializer):
 
 class LegajoCreateSerializer(serializers.ModelSerializer):
     """
-    Serializer simplificado para crear documentos del legajo
-    Solo requiere: personal, tipo_documento, descripcion (opcional), archivo (PDF obligatorio)
+    Serializer para crear documentos del legajo.
+    Campos obligatorios: personal, seccion, tipo_documento, archivo
     """
     class Meta:
         model = Legajo
         fields = [
             'personal',
+            'seccion',
             'tipo_documento',
             'descripcion',
             'archivo'
         ]
     
     def validate_archivo(self, value):
-        """
-        Validar que el archivo sea PDF
-        """
+        """Validar que el archivo sea PDF"""
         if not value:
             raise serializers.ValidationError("El archivo es obligatorio")
         
@@ -209,9 +174,23 @@ class LegajoCreateSerializer(serializers.ModelSerializer):
         return value
     
     def validate_descripcion(self, value):
-        """
-        La descripción es opcional pero si se proporciona, validar longitud
-        """
+        """La descripción es opcional"""
         if value and len(value) > 500:
             raise serializers.ValidationError("La descripción no puede superar los 500 caracteres")
         return value
+    
+    def validate(self, data):
+        """Validaciones adicionales"""
+        # Validar que la sección esté activa
+        if data.get('seccion') and not data['seccion'].activo:
+            raise serializers.ValidationError({
+                'seccion': 'La sección seleccionada no está activa'
+            })
+        
+        # Validar que el tipo de documento esté activo
+        if data.get('tipo_documento') and not data['tipo_documento'].activo:
+            raise serializers.ValidationError({
+                'tipo_documento': 'El tipo de documento seleccionado no está activo'
+            })
+        
+        return data

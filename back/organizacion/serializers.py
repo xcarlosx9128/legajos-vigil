@@ -63,21 +63,17 @@ class SeccionLegajoSerializer(serializers.ModelSerializer):
 class TipoDocumentoSerializer(serializers.ModelSerializer):
     """
     Serializer ULTRA SIMPLIFICADO para tipos de documentos generales.
-    Ya NO tiene: seccion, seccion_numero, seccion_nombre, es_obligatorio, numero
-    Solo tiene: id, nombre, codigo, descripcion, activo, orden
+    Ya NO tiene: seccion, codigo, orden, es_obligatorio, numero
+    Solo tiene: id, nombre, descripcion, activo
     """
-    nombre_completo = serializers.CharField(source='get_nombre_completo', read_only=True)
     
     class Meta:
         model = TipoDocumento
         fields = [
             'id',
             'nombre',
-            'nombre_completo',
-            'codigo',
             'descripcion',
             'activo',
-            'orden',
             'fecha_creacion',
             'fecha_actualizacion'
         ]

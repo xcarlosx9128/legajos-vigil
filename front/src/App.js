@@ -11,15 +11,17 @@ import Eventos from './pages/Eventos';
 import Tickets from './pages/Tickets';
 import GestionUsuarios from './pages/admin/GestionUsuarios';
 import GestionAreas from './pages/admin/GestionAreas';
-import ConfiguracionOrganizacional from './pages/admin/ConfiguracionOrganizacional'; // ⭐ NUEVO
-import CondicionLaboral from './pages/admin/CondicionLaboral'; // ⭐ NUEVO
-import Regimenes from './pages/admin/Regimenes'; // ⭐ NUEVO
-import SeccionesLegajo from './pages/admin/SeccionesLegajo'; // ⭐ NUEVO
-import TipoDocumentos from './pages/admin/TipoDocumentos'; // ⭐ NUEVO
-import CargosPersonal from './pages/admin/CargosPersonal'; // ⭐ NUEVO
+import ConfiguracionOrganizacional from './pages/admin/ConfiguracionOrganizacional';
+import CondicionLaboral from './pages/admin/CondicionLaboral';
+import Regimenes from './pages/admin/Regimenes';
+import SeccionesLegajo from './pages/admin/SeccionesLegajo';
+import TipoDocumentos from './pages/admin/TipoDocumentos';
+import CargosPersonal from './pages/admin/CargosPersonal';
 import ConsultarPersonal from './pages/subgerente/ConsultarPersonal';
 import GestionarPersonal from './pages/GestionarPersonal';
+import VisualizarLegajo from './pages/VisualizarLegajo'; // ⭐ NUEVO
 import EditarLegajo from './pages/EditarLegajo';
+import VisualizarEscalafon from './pages/VisualizarEscalafon'; // ⭐ NUEVO
 import EditarHistorialEscalafon from './pages/EditarHistorialEscalafon';
 
 const theme = createTheme({
@@ -92,9 +94,21 @@ function App() {
               }
             />
 
+            {/* ⭐ NUEVO: Visualizar Legajo (solo lectura) */}
+            <Route
+              path="/personal/:id/visualizar-legajo"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <VisualizarLegajo />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
             {/* ⭐ NUEVO: Editar Legajo (documentos) */}
             <Route
-              path="/gestionar-personal/:id/legajo"
+              path="/personal/:id/editar-legajo"
               element={
                 <ProtectedRoute>
                   <MainLayout>
@@ -104,9 +118,21 @@ function App() {
               }
             />
 
+            {/* ⭐ NUEVO: Visualizar Escalafón (solo lectura) */}
+            <Route
+              path="/personal/:id/visualizar-escalafon"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <VisualizarEscalafon />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
             {/* ⭐ NUEVO: Editar Historial Escalafón */}
             <Route
-              path="/gestionar-personal/:id/escalafon"
+              path="/personal/:id/editar-escalafon"
               element={
                 <ProtectedRoute>
                   <MainLayout>
@@ -139,7 +165,7 @@ function App() {
               }
             />
 
-            {/* ⭐ NUEVO: Configuración y Gestión Organizacional */}
+            {/* ⭐ Configuración y Gestión Organizacional */}
             <Route
               path="/admin/configuracion-organizacional"
               element={
@@ -151,7 +177,7 @@ function App() {
               }
             />
 
-            {/* ⭐ NUEVO: Condición Laboral */}
+            {/* ⭐ Condición Laboral */}
             <Route
               path="/admin/condicion-laboral"
               element={
@@ -163,7 +189,7 @@ function App() {
               }
             />
 
-            {/* ⭐ NUEVO: Regímenes */}
+            {/* ⭐ Regímenes */}
             <Route
               path="/admin/regimenes"
               element={
@@ -175,7 +201,7 @@ function App() {
               }
             />
 
-            {/* ⭐ NUEVO: Secciones de Legajo */}
+            {/* ⭐ Secciones de Legajo */}
             <Route
               path="/admin/secciones-legajo"
               element={
@@ -187,7 +213,7 @@ function App() {
               }
             />
 
-            {/* ⭐ NUEVO: Tipo de Documentos */}
+            {/* ⭐ Tipo de Documentos */}
             <Route
               path="/admin/tipo-documentos"
               element={
@@ -199,7 +225,7 @@ function App() {
               }
             />
 
-            {/* ⭐ NUEVO: Cargos de Personal */}
+            {/* ⭐ Cargos de Personal */}
             <Route
               path="/admin/cargos-personal"
               element={

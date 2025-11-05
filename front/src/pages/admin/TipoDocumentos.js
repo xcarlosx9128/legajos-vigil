@@ -18,9 +18,6 @@ import {
   CircularProgress,
   InputAdornment,
   Typography,
-  FormControl,
-  Select,
-  MenuItem,
   Chip,
 } from '@mui/material';
 import {
@@ -34,7 +31,6 @@ import api from '../../services/api';
 
 const TipoDocumentos = () => {
   const [tiposDocumento, setTiposDocumento] = useState([]);
-  const [secciones, setSecciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [openSuccessDialog, setOpenSuccessDialog] = useState(false);
@@ -49,7 +45,6 @@ const TipoDocumentos = () => {
   const [currentTipoDoc, setCurrentTipoDoc] = useState({
     nombre: '',
     descripcion: '',
-    seccion: '',
   });
 
   useEffect(() => {
@@ -75,25 +70,7 @@ const TipoDocumentos = () => {
         }
       }
       
-      // Cargar secciones
-      let allSecciones = [];
-      let urlSecciones = '/secciones-legajo/?page_size=100';
-      
-      while (urlSecciones) {
-        const response = await api.get(urlSecciones);
-        const data = response.data;
-        
-        if (data.results) {
-          allSecciones = [...allSecciones, ...data.results];
-          urlSecciones = data.next ? data.next.replace(api.defaults.baseURL, '') : null;
-        } else {
-          allSecciones = data;
-          urlSecciones = null;
-        }
-      }
-      
       setTiposDocumento(allTiposDocumento);
-      setSecciones(allSecciones);
       setLoading(false);
     } catch (error) {
       console.error('Error al cargar datos:', error);
@@ -109,14 +86,12 @@ const TipoDocumentos = () => {
         id: tipoDoc.id,
         nombre: tipoDoc.nombre || '',
         descripcion: tipoDoc.descripcion || '',
-        seccion: tipoDoc.seccion || '',
       });
     } else {
       setEditMode(false);
       setCurrentTipoDoc({
         nombre: '',
         descripcion: '',
-        seccion: '',
       });
     }
     setOpenDialog(true);
@@ -128,7 +103,6 @@ const TipoDocumentos = () => {
     setCurrentTipoDoc({
       nombre: '',
       descripcion: '',
-      seccion: '',
     });
   };
 
@@ -144,8 +118,7 @@ const TipoDocumentos = () => {
     try {
       const dataToSend = {
         nombre: currentTipoDoc.nombre,
-        descripcion: currentTipoDoc.descripcion || null,
-        seccion: currentTipoDoc.seccion || null,
+        descripcion: currentTipoDoc.descripcion || '',
       };
 
       if (editMode) {
@@ -190,11 +163,6 @@ const TipoDocumentos = () => {
       setError('Error al cambiar el estado');
       handleCloseStatusDialog();
     }
-  };
-
-  const getSeccionNombre = (seccionId) => {
-    const seccion = secciones.find((s) => s.id === seccionId);
-    return seccion ? seccion.nombre : '--';
   };
 
   const filteredTiposDocumento = tiposDocumento.filter((tipoDoc) =>
@@ -273,17 +241,16 @@ const TipoDocumentos = () => {
           <TableHead>
             <TableRow sx={{ bgcolor: '#0d3c6e' }}>
               <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '5%' }}>N°</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '25%' }}>Nombre</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '30%' }}>Descripción</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '15%' }}>Sección</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '35%' }}>Nombre</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '40%' }}>Descripción</TableCell>
               <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '10%' }} align="center">Estado</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '15%' }}>Acciones</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, width: '10%' }}>Acciones</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredTiposDocumento.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
                   <Typography variant="body2" color="textSecondary">
                     No se encontraron tipos de documentos
                   </Typography>
@@ -298,9 +265,6 @@ const TipoDocumentos = () => {
                   </TableCell>
                   <TableCell sx={{ fontSize: '0.875rem', py: 2.5 }}>
                     {tipoDoc.descripcion || '--'}
-                  </TableCell>
-                  <TableCell sx={{ fontSize: '0.875rem', py: 2.5 }}>
-                    {getSeccionNombre(tipoDoc.seccion)}
                   </TableCell>
                   <TableCell align="center" sx={{ py: 2.5 }}>
                     <Chip
@@ -377,7 +341,7 @@ const TipoDocumentos = () => {
                 size="small"
                 value={currentTipoDoc.nombre}
                 onChange={(e) => setCurrentTipoDoc({ ...currentTipoDoc, nombre: e.target.value })}
-                placeholder="DNI"
+                placeholder="Ej: DNI, Memorándum, Solicitud"
                 required
                 sx={{
                   bgcolor: 'white',
@@ -390,7 +354,7 @@ const TipoDocumentos = () => {
             {/* Descripción */}
             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
               <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '200px', mt: 1 }}>
-                Descripcion (Opcional):
+                Descripción (Opcional):
               </Typography>
               <TextField
                 fullWidth
@@ -405,34 +369,6 @@ const TipoDocumentos = () => {
                   '& .MuiOutlinedInput-root': { borderRadius: 1, '& fieldset': { border: 'none' } },
                 }}
               />
-            </Box>
-
-            {/* Sección */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Typography sx={{ color: 'white', fontSize: '1rem', fontWeight: 500, minWidth: '200px' }}>
-                Sección de Legajo:
-              </Typography>
-              <FormControl fullWidth size="small">
-                <Select
-                  value={currentTipoDoc.seccion}
-                  onChange={(e) => setCurrentTipoDoc({ ...currentTipoDoc, seccion: e.target.value })}
-                  displayEmpty
-                  sx={{
-                    bgcolor: 'white',
-                    borderRadius: 1,
-                    '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
-                  }}
-                >
-                  <MenuItem value="">
-                    <em>Sin sección</em>
-                  </MenuItem>
-                  {secciones.map((seccion) => (
-                    <MenuItem key={seccion.id} value={seccion.id}>
-                      {seccion.nombre}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
             </Box>
           </Box>
 

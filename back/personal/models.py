@@ -1,6 +1,6 @@
 from django.db import models
 from django.utils import timezone
-from organizacion.models import Area, Regimen, CondicionLaboral, TipoDocumento
+from organizacion.models import Area, Regimen, CondicionLaboral, TipoDocumento, SeccionLegajo
 
 class Personal(models.Model):
     # Datos personales
@@ -20,7 +20,7 @@ class Personal(models.Model):
     area_actual = models.ForeignKey(Area, on_delete=models.PROTECT, related_name='personal_actual', null=True)
     regimen_actual = models.ForeignKey(Regimen, on_delete=models.PROTECT, related_name='personal_actual', null=True)
     condicion_actual = models.ForeignKey(CondicionLaboral, on_delete=models.PROTECT, related_name='personal_actual', null=True)
-    cargo_actual = models.CharField(max_length=200, blank=True, null=True)
+    cargo_actual = models.CharField(max_length=200, blank=True, null=True)  # ⭐ VARCHAR, no ForeignKey
     fecha_ingreso = models.DateField(null=True, blank=True)
     
     # Control
@@ -46,7 +46,7 @@ class Personal(models.Model):
     def nombre_completo(self):
         return f"{self.nombres} {self.apellido_paterno} {self.apellido_materno}"
 
-# Clase Escalafon
+
 class Escalafon(models.Model):
     personal = models.ForeignKey(Personal, on_delete=models.CASCADE, related_name='escalafones')
     area = models.ForeignKey(Area, on_delete=models.PROTECT)
@@ -72,58 +72,82 @@ class Escalafon(models.Model):
     def __str__(self):
         return f"{self.personal.nombre_completo} - {self.cargo} ({self.fecha_inicio})"
 
-# Clase Legajo
+
 class Legajo(models.Model):
     """
-    MODELO SIMPLIFICADO - Solo 4 campos esenciales:
-    - personal (FK)
-    - tipo_documento (FK)
-    - fecha_registro (timestamp automático)
-    - descripcion (opcional)
-    - archivo (solo PDF)
+    Modelo ULTRA SIMPLIFICADO de documentos del legajo.
+    
+    Solo 6 campos esenciales:
+    1. personal - A quién pertenece
+    2. seccion - En qué sección se guarda (1-9)
+    3. tipo_documento - Qué tipo de documento es
+    4. descripcion - Descripción opcional
+    5. archivo - Ruta del PDF (500 caracteres)
+    6. fecha_creacion - Cuándo se subió (ÚNICA FECHA)
     """
+    
     personal = models.ForeignKey(
         Personal, 
         on_delete=models.CASCADE, 
-        related_name='legajos'
+        related_name='legajos',
+        help_text="Personal al que pertenece el documento"
     )
+    
+    seccion = models.ForeignKey(
+        SeccionLegajo,
+        on_delete=models.PROTECT,
+        related_name='documentos',
+        help_text="Sección del legajo (1-9 según SIGELP)"
+    )
+    
     tipo_documento = models.ForeignKey(
         TipoDocumento, 
         on_delete=models.PROTECT,
         related_name='documentos',
-        help_text="Tipo de documento según los 9 tipos del SIGELP"
+        help_text="Tipo de documento"
     )
-    fecha_registro = models.DateTimeField(
-        auto_now_add=True,
-        help_text="Fecha y hora de registro del documento (timestamp automático)"
-    )
+    
     descripcion = models.TextField(
         blank=True, 
         null=True,
         help_text="Descripción opcional del documento"
     )
+    
+    # ⭐ ARCHIVO CON 500 CARACTERES
     archivo = models.FileField(
         upload_to='legajos/%Y/%m/',
+        max_length=500,
         help_text="Archivo PDF del documento"
     )
     
-    # Metadatos
+    # ⭐ SOLO UNA FECHA - Cuando se subió el archivo
+    fecha_creacion = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Fecha y hora en que se subió el documento (automático)"
+    )
+    
+    # Usuario que subió el documento
     registrado_por = models.ForeignKey(
         'usuarios.Usuario', 
         on_delete=models.PROTECT,
-        related_name='legajos_registrados'
+        related_name='legajos_registrados',
+        help_text="Usuario que subió el documento"
     )
-    fecha_creacion = models.DateTimeField(default=timezone.now)
-    fecha_modificacion = models.DateTimeField(auto_now=True)
     
     class Meta:
         db_table = 'legajos'
         verbose_name = 'Documento de Legajo'
         verbose_name_plural = 'Documentos de Legajo'
-        ordering = ['-fecha_registro']
+        ordering = ['-fecha_creacion']  # Más recientes primero
+        indexes = [
+            models.Index(fields=['personal', 'seccion']),
+            models.Index(fields=['personal', 'tipo_documento']),
+            models.Index(fields=['seccion']),
+            models.Index(fields=['-fecha_creacion']),
+        ]
     
     def __str__(self):
-        return f"{self.personal.nombre_completo} - {self.tipo_documento.nombre} - {self.fecha_registro.strftime('%d/%m/%Y')}"
+        return f"{self.personal.nombre_completo} - {self.seccion.nombre} - {self.tipo_documento.nombre}"
     
     def save(self, *args, **kwargs):
         # Validar que el archivo sea PDF

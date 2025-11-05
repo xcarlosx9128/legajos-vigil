@@ -6,7 +6,7 @@ from django.db.models import Q
 from django.http import FileResponse, Http404
 from eventos.utils import registrar
 from .models import Personal, Escalafon, Legajo
-from organizacion.models import TipoDocumento
+from organizacion.models import TipoDocumento, SeccionLegajo
 from .serializers import (
     PersonalSerializer, PersonalListSerializer, PersonalCreateSerializer,
     EscalafonSerializer, EscalafonCreateSerializer,
@@ -74,41 +74,48 @@ class PersonalViewSet(viewsets.ModelViewSet):
         print(f"✅ Personal creado: {personal.nombre_completo} (ID: {personal.id})")
         print(f"📄 ¿Tiene documento?: {bool(personal.documento)}")
         
-        # Buscar el tipo "Documentos Varios" (número 9)
+        # Si tiene documento, guardarlo en el legajo
         if personal.documento:
             print("📁 Documento detectado, guardando en Legajo...")
             try:
-                # Buscar el tipo número 9 (Documentos Varios)
-                tipo_varios = TipoDocumento.objects.get(numero=9)
-                print(f"✅ Tipo VARIOS encontrado:")
-                print(f"   - ID: {tipo_varios.id}")
-                print(f"   - Número: {tipo_varios.numero}")
-                print(f"   - Nombre: {tipo_varios.nombre}")
+                # Buscar la sección 9 (Otros/Documentos Varios)
+                seccion_otros = SeccionLegajo.objects.filter(orden=9, activo=True).first()
+                if not seccion_otros:
+                    print("⚠️ No se encontró la sección 9 activa, buscando cualquier sección activa...")
+                    seccion_otros = SeccionLegajo.objects.filter(activo=True).first()
                 
-                # Crear el documento en Legajo con el modelo simplificado
+                if not seccion_otros:
+                    print("❌ ERROR: No hay secciones activas disponibles")
+                    return
+                
+                print(f"✅ Sección encontrada: {seccion_otros.orden}. {seccion_otros.nombre}")
+                
+                # Buscar un tipo de documento activo
+                tipo_documento = TipoDocumento.objects.filter(activo=True).first()
+                if not tipo_documento:
+                    print("❌ ERROR: No hay tipos de documento activos")
+                    return
+                
+                print(f"✅ Tipo de documento: {tipo_documento.nombre}")
+                
+                # Crear el documento en Legajo
                 legajo = Legajo.objects.create(
                     personal=personal,
-                    tipo_documento=tipo_varios,
+                    seccion=seccion_otros,
+                    tipo_documento=tipo_documento,
                     descripcion=f'Documento adjunto al momento de crear el registro del personal',
                     archivo=personal.documento,
                     registrado_por=self.request.user
                 )
-                print(f"✅ Documento guardado en Legajo!")
-                print(f"   - ID Legajo: {legajo.id}")
-                print(f"   - Tipo: {legajo.tipo_documento.nombre}")
-                print(f"   - Fecha: {legajo.fecha_registro}")
-                print(f"   - Archivo: {legajo.archivo.url if legajo.archivo else 'Sin archivo'}")
+                print(f"✅ Documento guardado en Legajo! (ID: {legajo.id})")
+                print(f"   - Fecha de creación: {legajo.fecha_creacion}")
                 
-            except TipoDocumento.DoesNotExist:
-                print("❌ ERROR: No se encontró el tipo de documento número 9")
-                print("💡 Verifica en el admin que exista un TipoDocumento con numero=9")
-                print("💡 Debería ser: 9. Documentos Varios")
             except Exception as e:
                 print(f"❌ ERROR al crear documento en legajo: {str(e)}")
                 import traceback
                 traceback.print_exc()
         else:
-            print("⚠️ No se subió documento, no se crea registro en Legajo")
+            print("⚠️ No se subió documento")
         
         print("="*80 + "\n")
     
@@ -118,11 +125,8 @@ class PersonalViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         
-        # Registrar evento: Creación de Nuevo Personal (ID 3)
-        registrar(
-            usuario_ejecutor=request.user,
-            id_evento=3
-        )
+        # Registrar evento
+        registrar(usuario_ejecutor=request.user, id_evento=3)
         
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
@@ -142,7 +146,7 @@ class PersonalViewSet(viewsets.ModelViewSet):
         """Obtener legajo del personal"""
         personal = self.get_object()
         legajos = Legajo.objects.filter(personal=personal).select_related(
-            'tipo_documento', 'registrado_por'
+            'seccion', 'tipo_documento', 'registrado_por'
         )
         serializer = LegajoSerializer(legajos, many=True, context={'request': request})
         return Response(serializer.data)
@@ -171,7 +175,6 @@ class EscalafonViewSet(viewsets.ModelViewSet):
             'personal', 'area', 'regimen', 'condicion_laboral'
         )
         
-        # Filtro por personal
         personal_id = self.request.query_params.get('personal', None)
         if personal_id:
             queryset = queryset.filter(personal_id=personal_id)
@@ -183,7 +186,7 @@ class EscalafonViewSet(viewsets.ModelViewSet):
         
         # Actualizar datos actuales del personal si es el registro más reciente
         personal = escalafon.personal
-        if not escalafon.fecha_fin:  # Si no tiene fecha fin, es el actual
+        if not escalafon.fecha_fin:
             personal.area_actual = escalafon.area
             personal.regimen_actual = escalafon.regimen
             personal.condicion_actual = escalafon.condicion_laboral
@@ -198,11 +201,7 @@ class EscalafonViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         
-        # Registrar evento: Modificación de Escalafón (ID 8)
-        registrar(
-            usuario_ejecutor=request.user,
-            id_evento=8
-        )
+        registrar(usuario_ejecutor=request.user, id_evento=8)
         
         if getattr(instance, '_prefetched_objects_cache', None):
             instance._prefetched_objects_cache = {}
@@ -212,7 +211,8 @@ class EscalafonViewSet(viewsets.ModelViewSet):
 
 class LegajoViewSet(viewsets.ModelViewSet):
     """
-    ViewSet simplificado para gestión de documentos del legajo
+    ViewSet para gestión de documentos del legajo
+    ⭐ SIMPLIFICADO CON SOLO FECHA_CREACION
     """
     queryset = Legajo.objects.all()
     permission_classes = [IsAuthenticated, CanManagePersonal]
@@ -224,21 +224,25 @@ class LegajoViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         queryset = Legajo.objects.select_related(
-            'personal', 
+            'personal',
+            'seccion',
             'tipo_documento', 
             'registrado_por'
         )
         
         # Filtros
         personal_id = self.request.query_params.get('personal', None)
+        seccion_id = self.request.query_params.get('seccion', None)
         tipo = self.request.query_params.get('tipo', None)
         
         if personal_id:
             queryset = queryset.filter(personal_id=personal_id)
+        if seccion_id:
+            queryset = queryset.filter(seccion_id=seccion_id)
         if tipo:
             queryset = queryset.filter(tipo_documento_id=tipo)
         
-        return queryset.order_by('-fecha_registro')  # Cambiado a fecha_registro
+        return queryset.order_by('-fecha_creacion')  # ⭐ Más recientes primero
     
     def perform_create(self, serializer):
         """Crear documento y asignar usuario que lo registra"""
@@ -250,13 +254,9 @@ class LegajoViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         
-        # Registrar evento: Agregado de Documento al Legajo (ID 4)
-        registrar(
-            usuario_ejecutor=request.user,
-            id_evento=4
-        )
+        registrar(usuario_ejecutor=request.user, id_evento=4)
         
-        # Devolver el objeto completo con todas las relaciones
+        # Devolver el objeto completo
         instance = serializer.instance
         output_serializer = LegajoSerializer(instance, context={'request': request})
         
@@ -275,11 +275,7 @@ class LegajoViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         
-        # Registrar evento: Modificación de Documento del Legajo (ID 5)
-        registrar(
-            usuario_ejecutor=request.user,
-            id_evento=5
-        )
+        registrar(usuario_ejecutor=request.user, id_evento=5)
         
         if getattr(instance, '_prefetched_objects_cache', None):
             instance._prefetched_objects_cache = {}
@@ -304,10 +300,10 @@ class LegajoViewSet(viewsets.ModelViewSet):
         )
     
     @action(detail=False, methods=['get'])
-    def por_tipo(self, request):
+    def por_seccion(self, request):
         """
-        Obtener documentos organizados por tipo
-        GET /api/legajo/por_tipo/?personal=<id>
+        Obtener documentos organizados por sección
+        GET /api/legajos/por_seccion/?personal=<id>
         """
         personal_id = request.query_params.get('personal')
         if not personal_id:
@@ -316,19 +312,22 @@ class LegajoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Obtener todos los tipos de documento activos
-        from organizacion.serializers import TipoDocumentoListSerializer
-        tipos = TipoDocumento.objects.filter(activo=True).order_by('numero')
+        secciones = SeccionLegajo.objects.filter(activo=True).order_by('orden')
         
         resultado = []
-        for tipo in tipos:
+        for seccion in secciones:
             documentos = Legajo.objects.filter(
                 personal_id=personal_id,
-                tipo_documento=tipo
-            ).select_related('registrado_por')
+                seccion=seccion
+            ).select_related('tipo_documento', 'registrado_por')
             
             resultado.append({
-                'tipo': TipoDocumentoListSerializer(tipo).data,
+                'seccion': {
+                    'id': seccion.id,
+                    'nombre': seccion.nombre,
+                    'orden': seccion.orden,
+                    'color': seccion.color
+                },
                 'documentos': LegajoSerializer(
                     documentos,
                     many=True,
@@ -341,9 +340,7 @@ class LegajoViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['get'])
     def descargar(self, request, pk=None):
-        """
-        Endpoint para descargar un documento
-        """
+        """Endpoint para descargar un documento"""
         documento = self.get_object()
         if not documento.archivo:
             return Response(
@@ -351,7 +348,6 @@ class LegajoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Redirigir a la URL del archivo
         try:
             return FileResponse(
                 documento.archivo.open('rb'),
