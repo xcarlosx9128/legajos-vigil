@@ -304,13 +304,12 @@ const Tickets = () => {
                 <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Estado</TableCell>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Fecha de Inicio</TableCell>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Fecha de Cierre</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Acciones</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {filteredTickets.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} align="center">
+                  <TableCell colSpan={9} align="center">
                     <Typography variant="body2" color="textSecondary" sx={{ py: 3 }}>
                       {searchQuery || filtroEstado ? 'No se encontraron tickets' : 'No hay tickets registrados'}
                     </Typography>
@@ -355,20 +354,6 @@ const Tickets = () => {
                     </TableCell>
                     <TableCell>{formatearFecha(ticket.fecha_creacion)}</TableCell>
                     <TableCell>{formatearFecha(ticket.fecha_resolucion)}</TableCell>
-                    <TableCell>
-                      {ticket.estado === 'PENDIENTE' && (
-                        <Button
-                          size="small"
-                          variant="contained"
-                          color="success"
-                          startIcon={<CheckCircleIcon />}
-                          onClick={() => handleCompletarTicket(ticket.id)}
-                          sx={{ textTransform: 'none' }}
-                        >
-                          Completar
-                        </Button>
-                      )}
-                    </TableCell>
                   </TableRow>
                 ))
               )}

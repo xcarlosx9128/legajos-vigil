@@ -1,4 +1,4 @@
-// EditarLegajo.jsx - ACTUALIZADO CON CAMPO SECCION
+// EditarLegajo.jsx - CON NOTIFICACIÓN DE ÉXITO
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -33,6 +33,7 @@ import {
   Download as DownloadIcon,
   Visibility as VisibilityIcon,
   ArrowBack as ArrowBackIcon,
+  Description as DescriptionIcon,
 } from '@mui/icons-material';
 import api from '../services/api';
 import SearchableSelect from '../components/SearchableSelect';
@@ -47,6 +48,7 @@ const EditarLegajo = () => {
   const [tiposDocumento, setTiposDocumento] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openAddDialog, setOpenAddDialog] = useState(false);
+  const [openSuccessDialog, setOpenSuccessDialog] = useState(false);
   
   const [seccionSeleccionada, setSeccionSeleccionada] = useState('');
   const [tiposFiltrados, setTiposFiltrados] = useState([]);
@@ -215,7 +217,7 @@ const EditarLegajo = () => {
     try {
       const formData = new FormData();
       formData.append('personal', id);
-      formData.append('seccion', nuevoDocumento.seccion);          // ⭐ AGREGADO
+      formData.append('seccion', nuevoDocumento.seccion);
       formData.append('tipo_documento', nuevoDocumento.tipo_documento);
       formData.append('descripcion', nuevoDocumento.descripcion || '');
       formData.append('archivo', nuevoDocumento.archivo);
@@ -231,14 +233,18 @@ const EditarLegajo = () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      alert('Documento agregado exitosamente');
       handleCloseAddDialog();
-      cargarDatos();
+      setOpenSuccessDialog(true);
     } catch (err) {
       console.error('Error al agregar documento:', err);
       console.error('Respuesta del servidor:', err.response?.data);
       alert('Error al agregar documento: ' + (err.response?.data?.detail || err.message));
     }
+  };
+
+  const handleSuccessDialogClose = () => {
+    setOpenSuccessDialog(false);
+    cargarDatos();
   };
 
   const handleEliminarDocumento = async (documentoId) => {
@@ -270,7 +276,6 @@ const EditarLegajo = () => {
     if (!Array.isArray(documentos)) {
       return [];
     }
-    // ⭐ ACTUALIZADO: Usar el campo seccion del modelo Legajo
     return documentos.filter(doc => doc.seccion === seccionId || doc.seccion_id === seccionId);
   };
 
@@ -601,6 +606,52 @@ const EditarLegajo = () => {
             Agregar Documento
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Dialog de Éxito - Documento Agregado */}
+      <Dialog 
+        open={openSuccessDialog} 
+        onClose={handleSuccessDialogClose}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { bgcolor: '#003d6e', borderRadius: 2 } }}
+      >
+        <DialogContent sx={{ p: 6, textAlign: 'center' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+            <Box sx={{ 
+              width: 100, 
+              height: 100, 
+              borderRadius: 2, 
+              border: '5px solid white', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center' 
+            }}>
+              <DescriptionIcon sx={{ fontSize: 60, color: 'white' }} />
+            </Box>
+          </Box>
+
+          <Typography variant="h5" sx={{ color: 'white', fontWeight: 500, mb: 4 }}>
+            ¡Documento subido exitosamente!
+          </Typography>
+
+          <Button
+            onClick={handleSuccessDialogClose}
+            sx={{
+              bgcolor: '#ff0000',
+              color: 'white',
+              fontWeight: 'bold',
+              py: 1.5,
+              px: 8,
+              textTransform: 'none',
+              borderRadius: 1,
+              fontSize: '1.1rem',
+              '&:hover': { bgcolor: '#cc0000' },
+            }}
+          >
+            Continuar
+          </Button>
+        </DialogContent>
       </Dialog>
     </Box>
   );

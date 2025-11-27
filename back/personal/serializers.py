@@ -1,6 +1,9 @@
+# personal/serializers.py - ACTUALIZADO CON CARGO_NOMBRE
+
 from rest_framework import serializers
 from .models import Personal, Escalafon, Legajo
 from organizacion.serializers import AreaSerializer, RegimenSerializer, CondicionLaboralSerializer
+from organizacion.models import Cargo
 import os
 
 
@@ -10,6 +13,10 @@ class PersonalSerializer(serializers.ModelSerializer):
     regimen_actual_detalle = RegimenSerializer(source='regimen_actual', read_only=True)
     condicion_actual_detalle = CondicionLaboralSerializer(source='condicion_actual', read_only=True)
     
+    # ⭐ NUEVO: Agregar detalles del cargo
+    cargo_actual_detalle = serializers.SerializerMethodField()
+    cargo_nombre = serializers.SerializerMethodField()
+    
     class Meta:
         model = Personal
         fields = [
@@ -17,10 +24,46 @@ class PersonalSerializer(serializers.ModelSerializer):
             'nombre_completo', 'fecha_nacimiento', 'sexo', 'telefono', 'email',
             'direccion', 'area_actual', 'area_actual_detalle', 'regimen_actual',
             'regimen_actual_detalle', 'condicion_actual', 'condicion_actual_detalle',
-            'cargo_actual', 'fecha_ingreso', 'activo', 
+            'cargo_actual', 'cargo_actual_detalle', 'cargo_nombre',  # ⭐ ACTUALIZADO
+            'fecha_ingreso', 'activo', 
             'observaciones', 'documento', 'fecha_creacion', 'fecha_actualizacion'
         ]
         read_only_fields = ['id', 'fecha_creacion', 'fecha_actualizacion']
+    
+    def get_cargo_actual_detalle(self, obj):
+        """
+        Obtener los detalles completos del cargo.
+        Como cargo_actual es CharField (guarda el ID como string),
+        buscar el cargo en la base de datos.
+        """
+        if obj.cargo_actual:
+            try:
+                cargo = Cargo.objects.filter(id=int(obj.cargo_actual)).first()
+                if cargo:
+                    return {
+                        'id': cargo.id,
+                        'nombre': cargo.nombre,
+                        'codigo': cargo.codigo if hasattr(cargo, 'codigo') else None
+                    }
+            except (ValueError, TypeError):
+                # Si cargo_actual no es un ID válido, retornar None
+                pass
+        return None
+    
+    def get_cargo_nombre(self, obj):
+        """
+        Obtener solo el nombre del cargo para mostrar en listas.
+        """
+        if obj.cargo_actual:
+            try:
+                cargo = Cargo.objects.filter(id=int(obj.cargo_actual)).first()
+                if cargo:
+                    return cargo.nombre
+                # Si no se encuentra el cargo, retornar el valor original
+                return obj.cargo_actual
+            except (ValueError, TypeError):
+                return obj.cargo_actual
+        return None
 
 
 class PersonalListSerializer(serializers.ModelSerializer):
@@ -28,13 +71,26 @@ class PersonalListSerializer(serializers.ModelSerializer):
     area_nombre = serializers.CharField(source='area_actual.nombre', read_only=True)
     regimen_nombre = serializers.CharField(source='regimen_actual.nombre', read_only=True)
     condicion_nombre = serializers.CharField(source='condicion_actual.nombre', read_only=True)
+    cargo_nombre = serializers.SerializerMethodField()  # ⭐ NUEVO
     
     class Meta:
         model = Personal
         fields = [
             'id', 'dni', 'nombre_completo', 'area_nombre', 
-            'regimen_nombre', 'condicion_nombre', 'cargo_actual', 'activo'
+            'regimen_nombre', 'condicion_nombre', 'cargo_actual', 'cargo_nombre', 'activo'  # ⭐ ACTUALIZADO
         ]
+    
+    def get_cargo_nombre(self, obj):
+        """Obtener el nombre del cargo para listas"""
+        if obj.cargo_actual:
+            try:
+                cargo = Cargo.objects.filter(id=int(obj.cargo_actual)).first()
+                if cargo:
+                    return cargo.nombre
+                return obj.cargo_actual
+            except (ValueError, TypeError):
+                return obj.cargo_actual
+        return None
 
 
 class PersonalCreateSerializer(serializers.ModelSerializer):
@@ -112,6 +168,9 @@ class LegajoSerializer(serializers.ModelSerializer):
     # URL del archivo
     archivo_url = serializers.SerializerMethodField()
     
+    # ⭐ ALIAS para compatibilidad con frontend que busca "fecha_registro"
+    fecha_registro = serializers.DateTimeField(source='fecha_creacion', read_only=True)
+    
     class Meta:
         model = Legajo
         fields = [
@@ -131,9 +190,10 @@ class LegajoSerializer(serializers.ModelSerializer):
             'archivo_url',
             'registrado_por',
             'registrado_por_nombre',
-            'fecha_creacion',  # ⭐ SOLO ESTA FECHA
+            'fecha_creacion',  # ⭐ Fecha real
+            'fecha_registro',  # ⭐ Alias para compatibilidad
         ]
-        read_only_fields = ['id', 'fecha_creacion', 'registrado_por']
+        read_only_fields = ['id', 'fecha_creacion', 'fecha_registro', 'registrado_por']
     
     def get_archivo_url(self, obj):
         if obj.archivo:
